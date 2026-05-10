@@ -11,8 +11,7 @@ from __future__ import annotations
 
 import asyncio
 from types import SimpleNamespace
-from typing import Any
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -61,12 +60,16 @@ class TestStopPreservesContext:
                 "assistant_message": {
                     "role": "assistant",
                     "content": "Let me search for that.",
-                    "tool_calls": [{"id": "tc_1", "type": "function",
-                                    "function": {"name": "web_search", "arguments": "{}"}}],
+                    "tool_calls": [
+                        {
+                            "id": "tc_1",
+                            "type": "function",
+                            "function": {"name": "web_search", "arguments": "{}"},
+                        }
+                    ],
                 },
                 "completed_tool_results": [
-                    {"role": "tool", "tool_call_id": "tc_1",
-                     "content": "Search results: ..."},
+                    {"role": "tool", "tool_call_id": "tc_1", "content": "Search results: ..."},
                 ],
                 "pending_tool_calls": [],
             }
@@ -105,9 +108,11 @@ async def test_dispatch_cancellation_restores_checkpoint():
     workspace = MagicMock()
     workspace.__truediv__ = MagicMock(return_value=MagicMock())
 
-    with patch("nanobot.agent.loop.ContextBuilder"), \
-         patch("nanobot.agent.loop.SessionManager"), \
-         patch("nanobot.agent.loop.SubagentManager") as MockSubMgr:
+    with (
+        patch("nanobot.agent.loop.ContextBuilder"),
+        patch("nanobot.agent.loop.SessionManager"),
+        patch("nanobot.agent.loop.SubagentManager") as MockSubMgr,
+    ):
         MockSubMgr.return_value.cancel_by_session = AsyncMock(return_value=0)
         loop = AgentLoop(bus=bus, provider=provider, workspace=workspace)
 
@@ -156,7 +161,9 @@ async def test_dispatch_cancellation_restores_checkpoint():
         "Expected the assistant message and completed tool result from the "
         f"interrupted turn to be materialized into session.messages; got {roles}"
     )
-    assert checkpoint_key not in session.metadata, \
+    assert checkpoint_key not in session.metadata, (
         "Checkpoint metadata should be cleared after restore"
-    assert loop.sessions.save.called, \
+    )
+    assert loop.sessions.save.called, (
         "Session should be persisted so the restored state survives process restart"
+    )

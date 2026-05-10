@@ -25,18 +25,20 @@ async def test_runner_can_disable_provider_progress_delta_streaming():
     progress_cb = AsyncMock()
 
     runner = AgentRunner(provider)
-    result = await runner.run(AgentRunSpec(
-        initial_messages=[
-            {"role": "system", "content": "system"},
-            {"role": "user", "content": "hi"},
-        ],
-        tools=tools,
-        model="test-model",
-        max_iterations=1,
-        max_tool_result_chars=_MAX_TOOL_RESULT_CHARS,
-        progress_callback=progress_cb,
-        stream_progress_deltas=False,
-    ))
+    result = await runner.run(
+        AgentRunSpec(
+            initial_messages=[
+                {"role": "system", "content": "system"},
+                {"role": "user", "content": "hi"},
+            ],
+            tools=tools,
+            model="test-model",
+            max_iterations=1,
+            max_tool_result_chars=_MAX_TOOL_RESULT_CHARS,
+            progress_callback=progress_cb,
+            stream_progress_deltas=False,
+        )
+    )
 
     assert result.final_content == "done"
     provider.chat_with_retry.assert_awaited_once()
@@ -62,17 +64,19 @@ async def test_runner_streams_provider_progress_deltas_by_default():
     progress_cb = AsyncMock()
 
     runner = AgentRunner(provider)
-    result = await runner.run(AgentRunSpec(
-        initial_messages=[
-            {"role": "system", "content": "system"},
-            {"role": "user", "content": "hi"},
-        ],
-        tools=tools,
-        model="test-model",
-        max_iterations=1,
-        max_tool_result_chars=_MAX_TOOL_RESULT_CHARS,
-        progress_callback=progress_cb,
-    ))
+    result = await runner.run(
+        AgentRunSpec(
+            initial_messages=[
+                {"role": "system", "content": "system"},
+                {"role": "user", "content": "hi"},
+            ],
+            tools=tools,
+            model="test-model",
+            max_iterations=1,
+            max_tool_result_chars=_MAX_TOOL_RESULT_CHARS,
+            progress_callback=progress_cb,
+        )
+    )
 
     assert result.final_content == "hello"
     assert [call.args[0] for call in progress_cb.await_args_list] == ["he", "llo"]

@@ -1,4 +1,4 @@
-"""Shell execution tool."""
+"""Shell 执行工具。"""
 
 import asyncio
 import os
@@ -19,7 +19,7 @@ from nanobot.config.paths import get_media_dir
 _IS_WINDOWS = sys.platform == "win32"
 
 
-# Policy note appended to recoverable workspace-boundary guard errors.
+# 追加到可恢复工作区边界防护错误上的策略说明。
 _WORKSPACE_BOUNDARY_NOTE = (
     "\n\nNote: this is a hard policy boundary, not a transient failure. "
     "Do NOT retry with shell tricks (symlinks, base64 piping, alternative "
@@ -46,7 +46,7 @@ _WORKSPACE_BOUNDARY_NOTE = (
     )
 )
 class ExecTool(Tool):
-    """Tool to execute shell commands."""
+    """用于执行 shell 命令的工具。"""
 
     def __init__(
         self,
@@ -63,21 +63,21 @@ class ExecTool(Tool):
         self.working_dir = working_dir
         self.sandbox = sandbox
         self.deny_patterns = (deny_patterns or []) + [
-            r"\brm\s+-[rf]{1,2}\b",          # rm -r, rm -rf, rm -fr
-            r"\bdel\s+/[fq]\b",              # del /f, del /q
-            r"\brmdir\s+/s\b",               # rmdir /s
-            r"(?:^|[;&|]\s*)format\b",       # format (as standalone command only)
-            r"\b(mkfs|diskpart)\b",          # disk operations
-            r"\bdd\s+if=",                   # dd
-            r">\s*/dev/sd",                  # write to disk
-            r"\b(shutdown|reboot|poweroff)\b",  # system power
-            r":\(\)\s*\{.*\};\s*:",          # fork bomb
-            # Block writes to nanobot internal state files (#2989).
-            # history.jsonl / .dream_cursor are managed by append_history();
-            # direct writes corrupt the cursor format and crash /dream.
-            r">>?\s*\S*(?:history\.jsonl|\.dream_cursor)",            # > / >> redirect
-            r"\btee\b[^|;&<>]*(?:history\.jsonl|\.dream_cursor)",     # tee / tee -a
-            r"\b(?:cp|mv)\b(?:\s+[^\s|;&<>]+)+\s+\S*(?:history\.jsonl|\.dream_cursor)",  # cp/mv target
+            r"\brm\s+-[rf]{1,2}\b",  # rm -r, rm -rf, rm -fr
+            r"\bdel\s+/[fq]\b",  # del /f, del /q
+            r"\brmdir\s+/s\b",  # rmdir /s
+            r"(?:^|[;&|]\s*)format\b",  # format（仅作为独立命令）
+            r"\b(mkfs|diskpart)\b",  # 磁盘操作
+            r"\bdd\s+if=",  # dd
+            r">\s*/dev/sd",  # 写入磁盘
+            r"\b(shutdown|reboot|poweroff)\b",  # 系统电源操作
+            r":\(\)\s*\{.*\};\s*:",  # fork 炸弹
+            # 阻止写入 nanobot 内部状态文件（#2989）。
+            # history.jsonl / .dream_cursor 由 append_history() 管理；
+            # 直接写入会破坏游标格式并导致 /dream 崩溃。
+            r">>?\s*\S*(?:history\.jsonl|\.dream_cursor)",  # > / >> 重定向
+            r"\btee\b[^|;&<>]*(?:history\.jsonl|\.dream_cursor)",  # tee / tee -a
+            r"\b(?:cp|mv)\b(?:\s+[^\s|;&<>]+)+\s+\S*(?:history\.jsonl|\.dream_cursor)",  # cp/mv 目标
             r"\bdd\b[^|;&<>]*\bof=\S*(?:history\.jsonl|\.dream_cursor)",  # dd of=
             r"\bsed\s+-i[^|;&<>]*(?:history\.jsonl|\.dream_cursor)",  # sed -i
         ]
@@ -93,18 +93,20 @@ class ExecTool(Tool):
     _MAX_TIMEOUT = 600
     _MAX_OUTPUT = 10_000
 
-    # Kernel device files safe as stdio redirect targets (#3599).
-    _BENIGN_DEVICE_PATHS: frozenset[str] = frozenset({
-        "/dev/null",
-        "/dev/zero",
-        "/dev/full",
-        "/dev/random",
-        "/dev/urandom",
-        "/dev/stdin",
-        "/dev/stdout",
-        "/dev/stderr",
-        "/dev/tty",
-    })
+    # 可安全作为 stdio 重定向目标的内核设备文件（#3599）。
+    _BENIGN_DEVICE_PATHS: frozenset[str] = frozenset(
+        {
+            "/dev/null",
+            "/dev/zero",
+            "/dev/full",
+            "/dev/random",
+            "/dev/urandom",
+            "/dev/stdin",
+            "/dev/stdout",
+            "/dev/stderr",
+            "/dev/tty",
+        }
+    )
 
     @property
     def description(self) -> str:
@@ -121,25 +123,23 @@ class ExecTool(Tool):
         return True
 
     async def execute(
-        self, command: str, working_dir: str | None = None,
-        timeout: int | None = None, **kwargs: Any,
+        self,
+        command: str,
+        working_dir: str | None = None,
+        timeout: int | None = None,
+        **kwargs: Any,
     ) -> str:
         cwd = working_dir or self.working_dir or os.getcwd()
 
-        # Prevent an LLM-supplied working_dir from escaping the configured
-        # workspace when restrict_to_workspace is enabled (#2826). Without
-        # this, a caller can pass working_dir="/etc" and then all absolute
-        # paths under /etc would pass the _guard_command check that anchors
-        # on cwd.
+        # 当启用 restrict_to_workspace 时，防止 LLM 提供的 working_dir 逃离配置的工作区（#2826）。
+        # 否则调用方可以传入 working_dir="/etc"，之后 /etc 下的绝对路径都会通过
+        # 以 cwd 为锚点的 _guard_command 检查。
         if self.restrict_to_workspace and self.working_dir:
             try:
                 requested = Path(cwd).expanduser().resolve()
                 workspace_root = Path(self.working_dir).expanduser().resolve()
             except Exception:
-                return (
-                    "Error: working_dir could not be resolved"
-                    + _WORKSPACE_BOUNDARY_NOTE
-                )
+                return "Error: working_dir could not be resolved" + _WORKSPACE_BOUNDARY_NOTE
             if requested != workspace_root and workspace_root not in requested.parents:
                 return (
                     "Error: working_dir is outside the configured workspace"
@@ -216,14 +216,15 @@ class ExecTool(Tool):
 
     @staticmethod
     async def _spawn(
-        command: str, cwd: str, env: dict[str, str],
+        command: str,
+        cwd: str,
+        env: dict[str, str],
     ) -> asyncio.subprocess.Process:
-        """Launch *command* in a platform-appropriate shell."""
+        """在适合当前平台的 shell 中启动 *command*。"""
         if _IS_WINDOWS:
-            # create_subprocess_exec re-quotes args via list2cmdline, which
-            # breaks commands containing paths with spaces (e.g. "D:\Program
-            # Files\python.exe" "script.py"). create_subprocess_shell passes
-            # the raw command string to COMSPEC without re-quoting.
+            # create_subprocess_exec 会通过 list2cmdline 重新引用参数，
+            # 这会破坏包含空格路径的命令（例如 "D:\Program Files\python.exe" "script.py"）。
+            # create_subprocess_shell 会将原始命令字符串传给 COMSPEC，不再重新引用。
             return await asyncio.create_subprocess_shell(
                 command,
                 stdout=asyncio.subprocess.PIPE,
@@ -233,7 +234,10 @@ class ExecTool(Tool):
             )
         bash = shutil.which("bash") or "/bin/bash"
         return await asyncio.create_subprocess_exec(
-            bash, "-l", "-c", command,
+            bash,
+            "-l",
+            "-c",
+            command,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=cwd,
@@ -242,7 +246,7 @@ class ExecTool(Tool):
 
     @staticmethod
     async def _kill_process(process: asyncio.subprocess.Process) -> None:
-        """Kill a subprocess and reap it to prevent zombies."""
+        """杀死子进程并回收，避免僵尸进程。"""
         process.kill()
         try:
             with suppress(asyncio.TimeoutError):
@@ -255,14 +259,13 @@ class ExecTool(Tool):
                     logger.debug("Process already reaped or not found: {}", e)
 
     def _build_env(self) -> dict[str, str]:
-        """Build a minimal environment for subprocess execution.
+        """为子进程执行构建最小环境。
 
-        On Unix, only HOME/LANG/TERM are passed; ``bash -l`` sources the
-        user's profile which sets PATH and other essentials.
+        在 Unix 上，仅传递 HOME/LANG/TERM；``bash -l`` 会加载用户 profile，
+        设置 PATH 和其他必要内容。
 
-        On Windows, ``cmd.exe`` has no login-profile mechanism, so a curated
-        set of system variables (including PATH) is forwarded.  API keys and
-        other secrets are still excluded.
+        在 Windows 上，``cmd.exe`` 没有登录 profile 机制，因此会转发一组精选系统变量
+        （包含 PATH）。API key 和其他密钥仍会排除。
         """
         if _IS_WINDOWS:
             sr = os.environ.get("SYSTEMROOT", r"C:\Windows")
@@ -301,13 +304,12 @@ class ExecTool(Tool):
         return env
 
     def _guard_command(self, command: str, cwd: str) -> str | None:
-        """Best-effort safety guard for potentially destructive commands."""
+        """针对潜在破坏性命令的尽力安全防护。"""
         cmd = command.strip()
         lower = cmd.lower()
 
-        # allow_patterns take priority over deny_patterns so that users can
-        # exempt specific commands (e.g. "rm -rf" inside a build directory)
-        # from the hardcoded deny list via configuration.
+        # allow_patterns 优先于 deny_patterns，让用户可以通过配置
+        # 将特定命令（例如构建目录内的 "rm -rf"）从硬编码 deny 列表中豁免。
         explicitly_allowed = bool(self.allow_patterns) and any(
             re.search(p, lower) for p in self.allow_patterns
         )
@@ -320,8 +322,9 @@ class ExecTool(Tool):
                 return "Error: Command blocked by allowlist filter (not in allowlist)"
 
         from nanobot.security.network import contains_internal_url
+
         if contains_internal_url(cmd):
-            # The runner turns this marker into a non-retryable security hint.
+            # runner 会将此标记转为不可重试的安全提示。
             return "Error: Command blocked by safety guard (internal/private URL detected)"
 
         if self.restrict_to_workspace:
@@ -336,9 +339,8 @@ class ExecTool(Tool):
             for raw in self._extract_absolute_paths(cmd):
                 try:
                     expanded = os.path.expandvars(raw.strip())
-                    # Match against the un-resolved path first.  On Linux,
-                    # /dev/stderr is a symlink to /proc/self/fd/2 and
-                    # ``Path.resolve()`` would mask the device-file intent.
+                    # 先匹配未解析路径。在 Linux 上，/dev/stderr 是指向 /proc/self/fd/2 的符号链接，
+                    # ``Path.resolve()`` 会掩盖设备文件意图。
                     if self._is_benign_device_path(expanded):
                         continue
                     p = Path(expanded).expanduser().resolve()
@@ -349,7 +351,8 @@ class ExecTool(Tool):
                     continue
 
                 media_path = get_media_dir().resolve()
-                if (p.is_absolute()
+                if (
+                    p.is_absolute()
                     and cwd_path not in p.parents
                     and p != cwd_path
                     and media_path not in p.parents
@@ -364,16 +367,18 @@ class ExecTool(Tool):
 
     @classmethod
     def _is_benign_device_path(cls, path: str) -> bool:
-        """Return True for kernel device files that should never be workspace-blocked."""
+        """对于永远不应被工作区规则阻止的内核设备文件返回 True。"""
         if path in cls._BENIGN_DEVICE_PATHS:
             return True
         return path.startswith("/dev/fd/")
 
     @staticmethod
     def _extract_absolute_paths(command: str) -> list[str]:
-        # Windows: match drive-root paths like `C:\` as well as `C:\path\to\file`
-        # NOTE: `*` is required so `C:\` (nothing after the slash) is still extracted.
+        # Windows：匹配 `C:\` 以及 `C:\path\to\file` 这类驱动器根路径
+        # 注意：必须使用 `*`，这样 `C:\`（斜杠后没有内容）也会被提取。
         win_paths = re.findall(r"[A-Za-z]:\\[^\s\"'|><;]*", command)
-        posix_paths = re.findall(r"(?:^|[\s|>'\"])(/[^\s\"'>;|<]+)", command) # POSIX: /absolute only
-        home_paths = re.findall(r"(?:^|[\s>'\"])(~[^\s\"'>;|<]*)", command) # POSIX/Windows home shortcut: ~
+        posix_paths = re.findall(r"(?:^|[\s|>'\"])(/[^\s\"'>;|<]+)", command)  # POSIX：仅 /absolute
+        home_paths = re.findall(
+            r"(?:^|[\s>'\"])(~[^\s\"'>;|<]*)", command
+        )  # POSIX/Windows home 快捷写法：~
         return win_paths + posix_paths + home_paths

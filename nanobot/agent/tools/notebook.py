@@ -1,4 +1,4 @@
-"""NotebookEditTool — edit Jupyter .ipynb notebooks."""
+"""NotebookEditTool：编辑 Jupyter .ipynb 笔记本。"""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ import uuid
 from typing import Any
 
 from nanobot.agent.tools.base import tool_parameters
-from nanobot.agent.tools.schema import IntegerSchema, StringSchema, tool_parameters_schema
 from nanobot.agent.tools.filesystem import _FsTool
+from nanobot.agent.tools.schema import IntegerSchema, StringSchema, tool_parameters_schema
 
 
 def _new_cell(source: str, cell_type: str = "code", generate_id: bool = False) -> dict:
@@ -54,7 +54,7 @@ def _make_empty_notebook() -> dict:
     )
 )
 class NotebookEditTool(_FsTool):
-    """Edit Jupyter notebook cells: replace, insert, or delete."""
+    """编辑 Jupyter 笔记本单元：替换、插入或删除。"""
 
     _VALID_CELL_TYPES = frozenset({"code", "markdown"})
     _VALID_EDIT_MODES = frozenset({"replace", "insert", "delete"})
@@ -91,19 +91,15 @@ class NotebookEditTool(_FsTool):
 
             if edit_mode not in self._VALID_EDIT_MODES:
                 return (
-                    f"Error: Invalid edit_mode '{edit_mode}'. "
-                    "Use one of: replace, insert, delete."
+                    f"Error: Invalid edit_mode '{edit_mode}'. Use one of: replace, insert, delete."
                 )
 
             if cell_type not in self._VALID_CELL_TYPES:
-                return (
-                    f"Error: Invalid cell_type '{cell_type}'. "
-                    "Use one of: code, markdown."
-                )
+                return f"Error: Invalid cell_type '{cell_type}'. Use one of: code, markdown."
 
             fp = self._resolve(path)
 
-            # Create new notebook if file doesn't exist and mode is insert
+            # 如果文件不存在且模式为 insert，则创建新笔记本
             if not fp.exists():
                 if edit_mode != "insert":
                     return f"Error: File not found: {path}"
@@ -139,9 +135,11 @@ class NotebookEditTool(_FsTool):
                 fp.write_text(json.dumps(nb, indent=1, ensure_ascii=False), encoding="utf-8")
                 return f"Successfully inserted cell at index {insert_at} in {fp}"
 
-            # Default: replace
+            # 默认：替换
             if cell_index < 0 or cell_index >= len(cells):
-                return f"Error: cell_index {cell_index} out of range (notebook has {len(cells)} cells)"
+                return (
+                    f"Error: cell_index {cell_index} out of range (notebook has {len(cells)} cells)"
+                )
             cells[cell_index]["source"] = new_source
             if cell_type and cells[cell_index].get("cell_type") != cell_type:
                 cells[cell_index]["cell_type"] = cell_type

@@ -6,7 +6,6 @@ history.jsonl (e.g. ``"cursor": "abc"``).  The original ``_next_cursor`` and
 ``TypeError`` / ``ValueError``, blocking all subsequent history appends.
 """
 
-import json
 
 import pytest
 
@@ -159,6 +158,7 @@ class TestCursorValidationInvariant:
         warning, subsequent reads on the same store stay quiet.  Without
         this, a poisoned file produces one warning per agent turn."""
         import logging
+
         from loguru import logger as loguru_logger
 
         store.history_file.write_text(
@@ -168,9 +168,7 @@ class TestCursorValidationInvariant:
         )
         store._cursor_file.unlink(missing_ok=True)
 
-        handler_id = loguru_logger.add(
-            caplog.handler, format="{message}", level="WARNING"
-        )
+        handler_id = loguru_logger.add(caplog.handler, format="{message}", level="WARNING")
         try:
             with caplog.at_level(logging.WARNING):
                 store.read_unprocessed_history(since_cursor=0)
@@ -179,9 +177,7 @@ class TestCursorValidationInvariant:
         finally:
             loguru_logger.remove(handler_id)
 
-        corruption_warnings = [
-            r for r in caplog.records if "non-int cursor" in r.getMessage()
-        ]
+        corruption_warnings = [r for r in caplog.records if "non-int cursor" in r.getMessage()]
         assert len(corruption_warnings) == 1, (
             "Expected exactly one corruption warning per store instance; "
             f"got {len(corruption_warnings)}: {[r.getMessage() for r in corruption_warnings]}"

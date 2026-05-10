@@ -30,7 +30,10 @@ async def test_message_tool_rejects_malformed_buttons(bad) -> None:
     into the channel layer where Telegram would silently reject the frame."""
     tool = MessageTool()
     result = await tool.execute(
-        content="hi", channel="telegram", chat_id="1", buttons=bad,
+        content="hi",
+        channel="telegram",
+        chat_id="1",
+        buttons=bad,
     )
     assert result == "Error: buttons must be a list of list of strings"
 

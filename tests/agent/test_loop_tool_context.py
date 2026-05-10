@@ -22,12 +22,14 @@ class _ContextRecordingTool:
         metadata: dict | None = None,
         session_key: str | None = None,
     ) -> None:
-        self.contexts.append({
-            "channel": channel,
-            "chat_id": chat_id,
-            "metadata": metadata,
-            "session_key": session_key,
-        })
+        self.contexts.append(
+            {
+                "channel": channel,
+                "chat_id": chat_id,
+                "metadata": metadata,
+                "session_key": session_key,
+            }
+        )
 
     async def execute(self, **_kwargs) -> str:
         return "created"

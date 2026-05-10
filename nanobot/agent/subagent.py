@@ -1,4 +1,4 @@
-"""Subagent manager for background task execution."""
+"""用于后台任务执行的子 agent 管理器。"""
 
 import asyncio
 import json
@@ -27,22 +27,22 @@ from nanobot.utils.prompt_templates import render_template
 
 @dataclass(slots=True)
 class SubagentStatus:
-    """Real-time status of a running subagent."""
+    """运行中子 agent 的实时状态。"""
 
     task_id: str
     label: str
     task_description: str
-    started_at: float          # time.monotonic()
-    phase: str = "initializing"  # initializing | awaiting_tools | tools_completed | final_response | done | error
+    started_at: float  # 来自 time.monotonic()
+    phase: str = "initializing"  # 阶段值：initializing | awaiting_tools | tools_completed | final_response | done | error
     iteration: int = 0
-    tool_events: list = field(default_factory=list)   # [{name, status, detail}, ...]
-    usage: dict = field(default_factory=dict)          # token usage
+    tool_events: list = field(default_factory=list)  # 工具事件：[{name, status, detail}, ...]
+    usage: dict = field(default_factory=dict)  # token 使用量
     stop_reason: str | None = None
     error: str | None = None
 
 
 class _SubagentHook(AgentHook):
-    """Hook for subagent execution — logs tool calls and updates status."""
+    """子 agent 执行钩子：记录工具调用并更新状态。"""
 
     def __init__(self, task_id: str, status: SubagentStatus | None = None) -> None:
         super().__init__()
@@ -54,7 +54,9 @@ class _SubagentHook(AgentHook):
             args_str = json.dumps(tool_call.arguments, ensure_ascii=False)
             logger.debug(
                 "Subagent [{}] executing: {} with arguments: {}",
-                self._task_id, tool_call.name, args_str,
+                self._task_id,
+                tool_call.name,
+                args_str,
             )
 
     async def after_iteration(self, context: AgentHookContext) -> None:
@@ -68,7 +70,7 @@ class _SubagentHook(AgentHook):
 
 
 class SubagentManager:
-    """Manages background subagent execution."""
+    """管理后台子 agent 执行。"""
 
     def __init__(
         self,
@@ -94,15 +96,13 @@ class SubagentManager:
         self.restrict_to_workspace = restrict_to_workspace
         self.disabled_skills = set(disabled_skills or [])
         self.max_iterations = (
-            max_iterations
-            if max_iterations is not None
-            else defaults.max_tool_iterations
+            max_iterations if max_iterations is not None else defaults.max_tool_iterations
         )
         self.max_concurrent_subagents = defaults.max_concurrent_subagents
         self.runner = AgentRunner(provider)
         self._running_tasks: dict[str, asyncio.Task[None]] = {}
         self._task_statuses: dict[str, SubagentStatus] = {}
-        self._session_tasks: dict[str, set[str]] = {}  # session_key -> {task_id, ...}
+        self._session_tasks: dict[str, set[str]] = {}  # session_key 到 {task_id, ...}
 
     def set_provider(self, provider: LLMProvider, model: str) -> None:
         self.provider = provider
@@ -118,7 +118,7 @@ class SubagentManager:
         session_key: str | None = None,
         origin_message_id: str | None = None,
     ) -> str:
-        """Spawn a subagent to execute a task in the background."""
+        """创建子 agent，在后台执行任务。"""
         task_id = str(uuid.uuid4())[:8]
         display_label = label or task[:30] + ("..." if len(task) > 30 else "")
         origin = {"channel": origin_channel, "chat_id": origin_chat_id, "session_key": session_key}
@@ -160,7 +160,7 @@ class SubagentManager:
         status: SubagentStatus,
         origin_message_id: str | None = None,
     ) -> None:
-        """Execute the subagent task and announce the result."""
+        """执行子 agent 任务并宣布结果。"""
         logger.info("Subagent [{}] starting task: {}", task_id, label)
 
         async def _on_checkpoint(payload: dict) -> None:
@@ -168,31 +168,59 @@ class SubagentManager:
             status.iteration = payload.get("iteration", status.iteration)
 
         try:
-            # Build subagent tools (no message tool, no spawn tool)
+            # 构建子 agent 工具（不包含 message 工具和 spawn 工具）
             tools = ToolRegistry()
-            allowed_dir = self.workspace if (self.restrict_to_workspace or self.exec_config.sandbox) else None
+            allowed_dir = (
+                self.workspace if (self.restrict_to_workspace or self.exec_config.sandbox) else None
+            )
             extra_read = [BUILTIN_SKILLS_DIR] if allowed_dir else None
-            # Subagent gets its own FileStates so its read-dedup cache is
-            # isolated from the parent loop's sessions (issue #3571).
+            # 子 agent 使用自己的 FileStates，让它的读取去重缓存
+            # 与父循环会话隔离（issue #3571）。
             from nanobot.agent.tools.file_state import FileStates
+
             file_states = FileStates()
-            tools.register(ReadFileTool(workspace=self.workspace, allowed_dir=allowed_dir, extra_allowed_dirs=extra_read, file_states=file_states))
-            tools.register(WriteFileTool(workspace=self.workspace, allowed_dir=allowed_dir, file_states=file_states))
-            tools.register(EditFileTool(workspace=self.workspace, allowed_dir=allowed_dir, file_states=file_states))
-            tools.register(ListDirTool(workspace=self.workspace, allowed_dir=allowed_dir, file_states=file_states))
-            tools.register(GlobTool(workspace=self.workspace, allowed_dir=allowed_dir, file_states=file_states))
-            tools.register(GrepTool(workspace=self.workspace, allowed_dir=allowed_dir, file_states=file_states))
+            tools.register(
+                ReadFileTool(
+                    workspace=self.workspace,
+                    allowed_dir=allowed_dir,
+                    extra_allowed_dirs=extra_read,
+                    file_states=file_states,
+                )
+            )
+            tools.register(
+                WriteFileTool(
+                    workspace=self.workspace, allowed_dir=allowed_dir, file_states=file_states
+                )
+            )
+            tools.register(
+                EditFileTool(
+                    workspace=self.workspace, allowed_dir=allowed_dir, file_states=file_states
+                )
+            )
+            tools.register(
+                ListDirTool(
+                    workspace=self.workspace, allowed_dir=allowed_dir, file_states=file_states
+                )
+            )
+            tools.register(
+                GlobTool(workspace=self.workspace, allowed_dir=allowed_dir, file_states=file_states)
+            )
+            tools.register(
+                GrepTool(workspace=self.workspace, allowed_dir=allowed_dir, file_states=file_states)
+            )
             if self.exec_config.enable:
-                tools.register(ExecTool(
-                    working_dir=str(self.workspace),
-                    timeout=self.exec_config.timeout,
-                    restrict_to_workspace=self.restrict_to_workspace,
-                    sandbox=self.exec_config.sandbox,
-                    path_append=self.exec_config.path_append,
-                    allowed_env_keys=self.exec_config.allowed_env_keys,
-                    allow_patterns=self.exec_config.allow_patterns,
-                    deny_patterns=self.exec_config.deny_patterns,
-                ))
+                tools.register(
+                    ExecTool(
+                        working_dir=str(self.workspace),
+                        timeout=self.exec_config.timeout,
+                        restrict_to_workspace=self.restrict_to_workspace,
+                        sandbox=self.exec_config.sandbox,
+                        path_append=self.exec_config.path_append,
+                        allowed_env_keys=self.exec_config.allowed_env_keys,
+                        allow_patterns=self.exec_config.allow_patterns,
+                        deny_patterns=self.exec_config.deny_patterns,
+                    )
+                )
             if self.web_config.enable:
                 tools.register(
                     WebSearchTool(
@@ -214,44 +242,60 @@ class SubagentManager:
                 {"role": "user", "content": task},
             ]
 
-            result = await self.runner.run(AgentRunSpec(
-                initial_messages=messages,
-                tools=tools,
-                model=self.model,
-                max_iterations=self.max_iterations,
-                max_tool_result_chars=self.max_tool_result_chars,
-                hook=_SubagentHook(task_id, status),
-                max_iterations_message="Task completed but no final response was generated.",
-                error_message=None,
-                fail_on_tool_error=True,
-                checkpoint_callback=_on_checkpoint,
-            ))
+            result = await self.runner.run(
+                AgentRunSpec(
+                    initial_messages=messages,
+                    tools=tools,
+                    model=self.model,
+                    max_iterations=self.max_iterations,
+                    max_tool_result_chars=self.max_tool_result_chars,
+                    hook=_SubagentHook(task_id, status),
+                    max_iterations_message="Task completed but no final response was generated.",
+                    error_message=None,
+                    fail_on_tool_error=True,
+                    checkpoint_callback=_on_checkpoint,
+                )
+            )
             status.phase = "done"
             status.stop_reason = result.stop_reason
 
             if result.stop_reason == "tool_error":
                 status.tool_events = list(result.tool_events)
                 await self._announce_result(
-                    task_id, label, task,
+                    task_id,
+                    label,
+                    task,
                     self._format_partial_progress(result),
-                    origin, "error", origin_message_id,
+                    origin,
+                    "error",
+                    origin_message_id,
                 )
             elif result.stop_reason == "error":
                 await self._announce_result(
-                    task_id, label, task,
+                    task_id,
+                    label,
+                    task,
                     result.error or "Error: subagent execution failed.",
-                    origin, "error", origin_message_id,
+                    origin,
+                    "error",
+                    origin_message_id,
                 )
             else:
-                final_result = result.final_content or "Task completed but no final response was generated."
+                final_result = (
+                    result.final_content or "Task completed but no final response was generated."
+                )
                 logger.info("Subagent [{}] completed successfully", task_id)
-                await self._announce_result(task_id, label, task, final_result, origin, "ok", origin_message_id)
+                await self._announce_result(
+                    task_id, label, task, final_result, origin, "ok", origin_message_id
+                )
 
         except Exception as e:
             status.phase = "error"
             status.error = str(e)
             logger.exception("Subagent [{}] failed", task_id)
-            await self._announce_result(task_id, label, task, f"Error: {e}", origin, "error", origin_message_id)
+            await self._announce_result(
+                task_id, label, task, f"Error: {e}", origin, "error", origin_message_id
+            )
 
     async def _announce_result(
         self,
@@ -263,7 +307,7 @@ class SubagentManager:
         status: str,
         origin_message_id: str | None = None,
     ) -> None:
-        """Announce the subagent result to the main agent via the message bus."""
+        """通过消息总线向主 agent 宣布子 agent 结果。"""
         status_text = "completed successfully" if status == "ok" else "failed"
 
         announce_content = render_template(
@@ -274,11 +318,10 @@ class SubagentManager:
             result=result,
         )
 
-        # Inject as system message to trigger main agent.
-        # Use session_key_override to align with the main agent's effective
-        # session key (which accounts for unified sessions) so the result is
-        # routed to the correct pending queue (mid-turn injection) instead of
-        # being dispatched as a competing independent task.
+        # 作为系统消息注入，以触发主 agent。
+        # 使用 session_key_override 对齐主 agent 的有效会话键
+        # （会考虑统一会话），让结果路由到正确的待处理队列
+        # （回合中注入），而不是作为竞争性的独立任务派发。
         override = origin.get("session_key") or f"{origin['channel']}:{origin['chat_id']}"
         metadata: dict[str, Any] = {
             "injected_event": "subagent_result",
@@ -296,7 +339,9 @@ class SubagentManager:
         )
 
         await self.bus.publish_inbound(msg)
-        logger.debug("Subagent [{}] announced result to {}:{}", task_id, origin['channel'], origin['chat_id'])
+        logger.debug(
+            "Subagent [{}] announced result to {}:{}", task_id, origin["channel"], origin["chat_id"]
+        )
 
     @staticmethod
     def _format_partial_progress(result) -> str:
@@ -320,7 +365,7 @@ class SubagentManager:
         return "\n".join(lines) or (result.error or "Error: subagent execution failed.")
 
     def _build_subagent_prompt(self) -> str:
-        """Build a focused system prompt for the subagent."""
+        """为子 agent 构建聚焦的系统提示词。"""
         from nanobot.agent.context import ContextBuilder
         from nanobot.agent.skills import SkillsLoader
 
@@ -337,9 +382,12 @@ class SubagentManager:
         )
 
     async def cancel_by_session(self, session_key: str) -> int:
-        """Cancel all subagents for the given session. Returns count cancelled."""
-        tasks = [self._running_tasks[tid] for tid in self._session_tasks.get(session_key, [])
-                 if tid in self._running_tasks and not self._running_tasks[tid].done()]
+        """取消给定会话的所有子 agent，并返回取消数量。"""
+        tasks = [
+            self._running_tasks[tid]
+            for tid in self._session_tasks.get(session_key, [])
+            if tid in self._running_tasks and not self._running_tasks[tid].done()
+        ]
         for t in tasks:
             t.cancel()
         if tasks:
@@ -347,13 +395,12 @@ class SubagentManager:
         return len(tasks)
 
     def get_running_count(self) -> int:
-        """Return the number of currently running subagents."""
+        """返回当前正在运行的子 agent 数量。"""
         return len(self._running_tasks)
 
     def get_running_count_by_session(self, session_key: str) -> int:
-        """Return the number of currently running subagents for a session."""
+        """返回某个会话当前正在运行的子 agent 数量。"""
         tids = self._session_tasks.get(session_key, set())
         return sum(
-            1 for tid in tids
-            if tid in self._running_tasks and not self._running_tasks[tid].done()
+            1 for tid in tids if tid in self._running_tasks and not self._running_tasks[tid].done()
         )

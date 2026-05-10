@@ -57,9 +57,7 @@ class Nanobot:
 
         config: Config = resolve_config_env_vars(load_config(resolved))
         if workspace is not None:
-            config.agents.defaults.workspace = str(
-                Path(workspace).expanduser().resolve()
-            )
+            config.agents.defaults.workspace = str(Path(workspace).expanduser().resolve())
 
         loop = AgentLoop.from_config(
             config,
@@ -91,7 +89,8 @@ class Nanobot:
         self._loop._extra_hooks = [capture, *base_hooks]
         try:
             response = await self._loop.process_direct(
-                message, session_key=session_key,
+                message,
+                session_key=session_key,
             )
         finally:
             self._loop._extra_hooks = prev
@@ -102,5 +101,3 @@ class Nanobot:
             tools_used=capture.tools_used,
             messages=capture.messages,
         )
-
-

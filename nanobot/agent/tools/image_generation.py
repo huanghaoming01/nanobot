@@ -1,4 +1,4 @@
-"""Image generation tool."""
+"""图像生成工具。"""
 
 from __future__ import annotations
 
@@ -37,7 +37,9 @@ if TYPE_CHECKING:
             min_length=1,
         ),
         reference_images=ArraySchema(
-            StringSchema("Local path of an existing image artifact or user-provided image to use as an edit reference."),
+            StringSchema(
+                "Local path of an existing image artifact or user-provided image to use as an edit reference."
+            ),
             description="Optional local image paths. Use generated artifact paths for iterative edits.",
         ),
         aspect_ratio=StringSchema(
@@ -55,7 +57,7 @@ if TYPE_CHECKING:
     )
 )
 class ImageGenerationTool(Tool):
-    """Generate persistent image artifacts through the configured image provider."""
+    """通过配置的图像提供商生成持久化图像产物。"""
 
     def __init__(
         self,
@@ -86,7 +88,9 @@ class ImageGenerationTool(Tool):
     def _provider_config(self) -> ProviderConfig | None:
         return self.provider_configs.get(self.config.provider)
 
-    def _provider_client(self) -> OpenRouterImageGenerationClient | AIHubMixImageGenerationClient | None:
+    def _provider_client(
+        self,
+    ) -> OpenRouterImageGenerationClient | AIHubMixImageGenerationClient | None:
         provider = self._provider_config()
         kwargs = {
             "api_key": provider.api_key if provider else None,

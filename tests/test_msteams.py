@@ -6,12 +6,16 @@ import pytest
 # Check optional msteams dependencies before running tests
 try:
     from nanobot.channels import msteams
+
     MSTEAMS_AVAILABLE = getattr(msteams, "MSTEAMS_AVAILABLE", False)
 except ImportError:
     MSTEAMS_AVAILABLE = False
 
 if not MSTEAMS_AVAILABLE:
-    pytest.skip("MSTeams dependencies not installed (PyJWT, cryptography). Run: pip install nanobot-ai[msteams]", allow_module_level=True)
+    pytest.skip(
+        "MSTeams dependencies not installed (PyJWT, cryptography). Run: pip install nanobot-ai[msteams]",
+        allow_module_level=True,
+    )
 
 import jwt
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -113,7 +117,9 @@ async def test_handle_activity_personal_message_publishes_and_stores_ref(make_ch
     assert msg.metadata["msteams"]["conversation_id"] == "conv-123"
     assert "conv-123" in ch._conversation_refs
 
-    saved = json.loads((tmp_path / "state" / "msteams_conversations.json").read_text(encoding="utf-8"))
+    saved = json.loads(
+        (tmp_path / "state" / "msteams_conversations.json").read_text(encoding="utf-8")
+    )
     assert saved["conv-123"]["conversation_id"] == "conv-123"
     assert saved["conv-123"]["tenant_id"] == "tenant-id"
     saved_meta = json.loads(
@@ -216,7 +222,9 @@ def test_save_prunes_unsupported_conversation_refs(make_channel, tmp_path, monke
 
     assert set(ch._conversation_refs.keys()) == {"conv-valid"}
 
-    saved = json.loads((tmp_path / "state" / "msteams_conversations.json").read_text(encoding="utf-8"))
+    saved = json.loads(
+        (tmp_path / "state" / "msteams_conversations.json").read_text(encoding="utf-8")
+    )
     assert set(saved.keys()) == {"conv-valid"}
     saved_meta = json.loads(
         (tmp_path / "state" / msteams_module.MSTEAMS_REF_META_FILENAME).read_text(encoding="utf-8"),
@@ -331,7 +339,9 @@ def test_init_without_meta_keeps_legacy_refs_alive(make_channel, tmp_path, monke
     assert not (state_dir / msteams_module.MSTEAMS_REF_META_FILENAME).exists()
 
 
-def test_save_uses_atomic_replace_and_keeps_existing_file_on_replace_error(make_channel, tmp_path, monkeypatch):
+def test_save_uses_atomic_replace_and_keeps_existing_file_on_replace_error(
+    make_channel, tmp_path, monkeypatch
+):
     ch = make_channel()
     refs_path = tmp_path / "state" / "msteams_conversations.json"
     refs_path.write_text(
@@ -533,8 +543,7 @@ def test_sanitize_inbound_text_normalizes_reply_wrapper_without_reply_metadata(m
     }
 
     assert ch._sanitize_inbound_text(activity) == (
-        "User is replying to: Quoted prior message\n"
-        "User reply: This is a reply with quote test"
+        "User is replying to: Quoted prior message\nUser reply: This is a reply with quote test"
     )
 
 
@@ -547,7 +556,10 @@ def test_sanitize_inbound_text_structures_reply_quote_prefix(make_channel):
         "channelData": {"messageType": "reply"},
     }
 
-    assert ch._sanitize_inbound_text(activity) == "User is replying to: Bob Smith\nUser reply: actual reply text"
+    assert (
+        ch._sanitize_inbound_text(activity)
+        == "User is replying to: Bob Smith\nUser reply: actual reply text"
+    )
 
 
 def test_sanitize_inbound_text_structures_live_reply_wrapper_shape(make_channel):
@@ -635,7 +647,9 @@ async def test_get_access_token_uses_configured_tenant(make_channel):
 
 
 @pytest.mark.asyncio
-async def test_send_posts_to_conversation_with_reply_to_id_when_reply_in_thread_enabled(make_channel):
+async def test_send_posts_to_conversation_with_reply_to_id_when_reply_in_thread_enabled(
+    make_channel,
+):
     ch = make_channel(replyInThread=True)
     fake_http = FakeHttpClient()
     ch._http = fake_http
@@ -658,7 +672,9 @@ async def test_send_posts_to_conversation_with_reply_to_id_when_reply_in_thread_
 
 
 @pytest.mark.asyncio
-async def test_send_success_refreshes_updated_at_and_persists_meta(make_channel, tmp_path, monkeypatch):
+async def test_send_success_refreshes_updated_at_and_persists_meta(
+    make_channel, tmp_path, monkeypatch
+):
     now = {"value": 1_800_000_000.0}
     monkeypatch.setattr(msteams_module.time, "time", lambda: now["value"])
 
@@ -708,7 +724,9 @@ async def test_send_posts_to_conversation_when_thread_reply_disabled(make_channe
 
 
 @pytest.mark.asyncio
-async def test_send_posts_to_conversation_when_thread_reply_enabled_but_no_activity_id(make_channel):
+async def test_send_posts_to_conversation_when_thread_reply_enabled_but_no_activity_id(
+    make_channel,
+):
     ch = make_channel(replyInThread=True)
     fake_http = FakeHttpClient()
     ch._http = fake_http
@@ -827,7 +845,9 @@ async def test_validate_inbound_auth_rejects_missing_bearer_token(make_channel):
     ch = make_channel(validateInboundAuth=True)
 
     with pytest.raises(ValueError, match="missing bearer token"):
-        await ch._validate_inbound_auth("", {"serviceUrl": "https://smba.trafficmanager.net/amer/tenant/"})
+        await ch._validate_inbound_auth(
+            "", {"serviceUrl": "https://smba.trafficmanager.net/amer/tenant/"}
+        )
 
 
 @pytest.mark.asyncio
@@ -835,7 +855,9 @@ async def test_start_logs_install_hint_when_pyjwt_missing(make_channel, monkeypa
     ch = make_channel()
     errors = []
     monkeypatch.setattr(msteams_module, "MSTEAMS_AVAILABLE", False)
-    monkeypatch.setattr(ch.logger, "error", lambda message, *args: errors.append(message.format(*args)))
+    monkeypatch.setattr(
+        ch.logger, "error", lambda message, *args: errors.append(message.format(*args))
+    )
 
     await ch.start()
 

@@ -7,7 +7,6 @@ from loguru import logger
 
 from nanobot.utils.helpers import detect_image_mime
 
-
 # Supported file extensions for text extraction
 SUPPORTED_EXTENSIONS: set[str] = {
     # Document formats
@@ -263,7 +262,9 @@ def extract_documents(
         if size > max_file_size:
             logger.warning(
                 "Skipping oversized file for extraction: {} ({:.1f} MB > {} MB limit)",
-                p.name, size / (1024 * 1024), max_file_size // (1024 * 1024),
+                p.name,
+                size / (1024 * 1024),
+                max_file_size // (1024 * 1024),
             )
             continue
 

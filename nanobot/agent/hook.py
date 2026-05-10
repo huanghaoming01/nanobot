@@ -1,4 +1,4 @@
-"""Shared lifecycle hook primitives for agent runs."""
+"""agent 运行时共享的生命周期钩子基础组件。"""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from nanobot.providers.base import LLMResponse, ToolCallRequest
 
 @dataclass(slots=True)
 class AgentHookContext:
-    """Mutable per-iteration state exposed to runner hooks."""
+    """暴露给 runner 钩子的每轮可变状态。"""
 
     iteration: int
     messages: list[dict[str, Any]]
@@ -28,7 +28,7 @@ class AgentHookContext:
 
 
 class AgentHook:
-    """Minimal lifecycle surface for shared runner customization."""
+    """用于自定义共享 runner 的最小生命周期接口。"""
 
     def __init__(self, reraise: bool = False) -> None:
         self._reraise = reraise
@@ -56,11 +56,11 @@ class AgentHook:
 
 
 class CompositeHook(AgentHook):
-    """Fan-out hook that delegates to an ordered list of hooks.
+    """将调用扇出到有序钩子列表的组合钩子。
 
-    Error isolation: async methods catch and log per-hook exceptions
-    so a faulty custom hook cannot crash the agent loop.
-    ``finalize_content`` is a pipeline (no isolation — bugs should surface).
+    错误隔离：异步方法会捕获并记录每个钩子的异常，
+    避免有问题的自定义钩子导致 agent 循环崩溃。
+    ``finalize_content`` 是流水线（不隔离错误，bug 应该暴露出来）。
     """
 
     __slots__ = ("_hooks",)
@@ -105,11 +105,10 @@ class CompositeHook(AgentHook):
 
 
 class SDKCaptureHook(AgentHook):
-    """Record tool names and the final message list for ``RunResult``.
+    """为 ``RunResult`` 记录工具名称和最终消息列表。
 
-    The runner mutates ``context.messages`` in place across iterations, so the
-    snapshot is refreshed on every ``after_iteration`` call; the last call
-    reflects the end-of-turn state the SDK caller cares about.
+    runner 会在多轮迭代中原地修改 ``context.messages``，因此快照会在每次
+    ``after_iteration`` 调用时刷新；最后一次调用反映 SDK 调用方关心的回合结束状态。
     """
 
     def __init__(self) -> None:

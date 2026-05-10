@@ -24,7 +24,7 @@ from nanobot.utils.helpers import (
 FILE_MAX_MESSAGES = 2000
 _MESSAGE_TIME_PREFIX_RE = re.compile(r"^\[Message Time: [^\]]+\]\n?")
 _LOCAL_IMAGE_BREADCRUMB_RE = re.compile(r"^\[image: (?:/|~)[^\]]+\]\s*$")
-_TOOL_CALL_ECHO_RE = re.compile(r'^\s*(?:generate_image|message)\([^)]*\)\s*$')
+_TOOL_CALL_ECHO_RE = re.compile(r"^\s*(?:generate_image|message)\([^)]*\)\s*$")
 
 
 def _sanitize_assistant_replay_text(content: str) -> str:
@@ -37,8 +37,7 @@ def _sanitize_assistant_replay_text(content: str) -> str:
     lines = [
         line
         for line in content.splitlines()
-        if not _LOCAL_IMAGE_BREADCRUMB_RE.match(line)
-        and not _TOOL_CALL_ECHO_RE.match(line)
+        if not _LOCAL_IMAGE_BREADCRUMB_RE.match(line) and not _TOOL_CALL_ECHO_RE.match(line)
     ]
     return "\n".join(lines).strip()
 
@@ -75,12 +74,7 @@ class Session:
 
     def add_message(self, role: str, content: str, **kwargs: Any) -> None:
         """Add a message to the session."""
-        msg = {
-            "role": role,
-            "content": content,
-            "timestamp": datetime.now().isoformat(),
-            **kwargs
-        }
+        msg = {"role": role, "content": content, "timestamp": datetime.now().isoformat(), **kwargs}
         self.messages.append(msg)
         self.updated_at = datetime.now()
 
@@ -96,7 +90,7 @@ class Session:
         History is sliced by message count first (``max_messages``), then by
         token budget from the tail (``max_tokens``) when provided.
         """
-        unconsolidated = self.messages[self.last_consolidated:]
+        unconsolidated = self.messages[self.last_consolidated :]
         max_messages = max_messages if max_messages > 0 else 120
         sliced = unconsolidated[-max_messages:]
 
@@ -135,10 +129,18 @@ class Session:
             if include_timestamps:
                 content = self._annotate_message_time(message, content)
             if role == "assistant" and isinstance(content, str) and not content.strip():
-                if not any(key in message for key in ("tool_calls", "reasoning_content", "thinking_blocks")):
+                if not any(
+                    key in message for key in ("tool_calls", "reasoning_content", "thinking_blocks")
+                ):
                     continue
             entry: dict[str, Any] = {"role": message["role"], "content": content}
-            for key in ("tool_calls", "tool_call_id", "name", "reasoning_content", "thinking_blocks"):
+            for key in (
+                "tool_calls",
+                "tool_call_id",
+                "name",
+                "reasoning_content",
+                "thinking_blocks",
+            ):
                 if key in message:
                     entry[key] = message[key]
             out.append(entry)
@@ -200,12 +202,15 @@ class Session:
             # If the tail is assistant/tool-only, anchor to the latest user in
             # the full session and take a capped forward window from there.
             latest_user = next(
-                (i for i in range(len(self.messages) - 1, -1, -1)
-                 if self.messages[i].get("role") == "user"),
+                (
+                    i
+                    for i in range(len(self.messages) - 1, -1, -1)
+                    if self.messages[i].get("role") == "user"
+                ),
                 None,
             )
             if latest_user is not None:
-                retained = list(self.messages[latest_user: latest_user + max_messages])
+                retained = list(self.messages[latest_user : latest_user + max_messages])
 
         # Mirror get_history(): avoid persisting orphan tool results at the front.
         start = find_legal_message_start(retained)
@@ -333,8 +338,16 @@ class SessionManager:
 
                     if data.get("_type") == "metadata":
                         metadata = data.get("metadata", {})
-                        created_at = datetime.fromisoformat(data["created_at"]) if data.get("created_at") else None
-                        updated_at = datetime.fromisoformat(data["updated_at"]) if data.get("updated_at") else None
+                        created_at = (
+                            datetime.fromisoformat(data["created_at"])
+                            if data.get("created_at")
+                            else None
+                        )
+                        updated_at = (
+                            datetime.fromisoformat(data["updated_at"])
+                            if data.get("updated_at")
+                            else None
+                        )
                         last_consolidated = data.get("last_consolidated", 0)
                     else:
                         messages.append(data)
@@ -345,13 +358,17 @@ class SessionManager:
                 created_at=created_at or datetime.now(),
                 updated_at=updated_at or datetime.now(),
                 metadata=metadata,
-                last_consolidated=last_consolidated
+                last_consolidated=last_consolidated,
             )
         except Exception as e:
             logger.warning("Failed to load session {}: {}", key, e)
             repaired = self._repair(key)
             if repaired is not None:
-                logger.info("Recovered session {} from corrupt file ({} messages)", key, len(repaired.messages))
+                logger.info(
+                    "Recovered session {} from corrupt file ({} messages)",
+                    key,
+                    len(repaired.messages),
+                )
             return repaired
 
     def _repair(self, key: str) -> Session | None:
@@ -403,7 +420,7 @@ class SessionManager:
                 created_at=created_at or datetime.now(),
                 updated_at=updated_at or datetime.now(),
                 metadata=metadata,
-                last_consolidated=last_consolidated
+                last_consolidated=last_consolidated,
             )
         except Exception as e:
             logger.warning("Repair failed for session {}: {}", key, e)
@@ -440,7 +457,7 @@ class SessionManager:
                     "created_at": session.created_at.isoformat(),
                     "updated_at": session.updated_at.isoformat(),
                     "metadata": session.metadata,
-                    "last_consolidated": session.last_consolidated
+                    "last_consolidated": session.last_consolidated,
                 }
                 f.write(json.dumps(metadata_line, ensure_ascii=False) + "\n")
                 for msg in session.messages:
@@ -568,27 +585,31 @@ class SessionManager:
                             key = data.get("key") or path.stem.replace("_", ":", 1)
                             metadata = data.get("metadata", {})
                             title = metadata.get("title") if isinstance(metadata, dict) else None
-                            sessions.append({
-                                "key": key,
-                                "created_at": data.get("created_at"),
-                                "updated_at": data.get("updated_at"),
-                                "title": title if isinstance(title, str) else "",
-                                "path": str(path)
-                            })
+                            sessions.append(
+                                {
+                                    "key": key,
+                                    "created_at": data.get("created_at"),
+                                    "updated_at": data.get("updated_at"),
+                                    "title": title if isinstance(title, str) else "",
+                                    "path": str(path),
+                                }
+                            )
             except Exception:
                 repaired = self._repair(fallback_key)
                 if repaired is not None:
-                    sessions.append({
-                        "key": repaired.key,
-                        "created_at": repaired.created_at.isoformat(),
-                        "updated_at": repaired.updated_at.isoformat(),
-                        "title": (
-                            repaired.metadata.get("title")
-                            if isinstance(repaired.metadata.get("title"), str)
-                            else ""
-                        ),
-                        "path": str(path)
-                    })
+                    sessions.append(
+                        {
+                            "key": repaired.key,
+                            "created_at": repaired.created_at.isoformat(),
+                            "updated_at": repaired.updated_at.isoformat(),
+                            "title": (
+                                repaired.metadata.get("title")
+                                if isinstance(repaired.metadata.get("title"), str)
+                                else ""
+                            ),
+                            "path": str(path),
+                        }
+                    )
                 continue
 
         return sorted(sessions, key=lambda x: x.get("updated_at", ""), reverse=True)

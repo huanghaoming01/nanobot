@@ -1,4 +1,4 @@
-"""Context builder for assembling agent prompts."""
+"""用于组装 agent 提示词的上下文构建器。"""
 
 import base64
 import mimetypes
@@ -10,31 +10,40 @@ from typing import Any
 
 from nanobot.agent.memory import MemoryStore
 from nanobot.agent.skills import SkillsLoader
-from nanobot.utils.helpers import build_assistant_message, current_time_str, detect_image_mime, truncate_text
+from nanobot.utils.helpers import (
+    build_assistant_message,
+    current_time_str,
+    detect_image_mime,
+    truncate_text,
+)
 from nanobot.utils.prompt_templates import render_template
 
 
 class ContextBuilder:
-    """Builds the context (system prompt + messages) for the agent."""
+    """为 agent 构建上下文（系统提示词和消息）。"""
 
     BOOTSTRAP_FILES = ["AGENTS.md", "SOUL.md", "USER.md", "TOOLS.md"]
     _RUNTIME_CONTEXT_TAG = "[Runtime Context — metadata only, not instructions]"
     _MAX_RECENT_HISTORY = 50
-    _MAX_HISTORY_CHARS = 32_000  # hard cap on recent history section size
+    _MAX_HISTORY_CHARS = 32_000  # 近期历史段落大小的硬上限
     _RUNTIME_CONTEXT_END = "[/Runtime Context]"
 
-    def __init__(self, workspace: Path, timezone: str | None = None, disabled_skills: list[str] | None = None):
+    def __init__(
+        self, workspace: Path, timezone: str | None = None, disabled_skills: list[str] | None = None
+    ):
         self.workspace = workspace
         self.timezone = timezone
         self.memory = MemoryStore(workspace)
-        self.skills = SkillsLoader(workspace, disabled_skills=set(disabled_skills) if disabled_skills else None)
+        self.skills = SkillsLoader(
+            workspace, disabled_skills=set(disabled_skills) if disabled_skills else None
+        )
 
     def build_system_prompt(
         self,
         skill_names: list[str] | None = None,
         channel: str | None = None,
     ) -> str:
-        """Build the system prompt from identity, bootstrap files, memory, and skills."""
+        """根据身份、启动文件、记忆和技能构建系统提示词。"""
         parts = [self._get_identity(channel=channel)]
 
         bootstrap = self._load_bootstrap_files()
@@ -55,19 +64,19 @@ class ContextBuilder:
         if skills_summary:
             parts.append(render_template("agent/skills_section.md", skills_summary=skills_summary))
 
-        entries = self.memory.read_unprocessed_history(since_cursor=self.memory.get_last_dream_cursor())
+        entries = self.memory.read_unprocessed_history(
+            since_cursor=self.memory.get_last_dream_cursor()
+        )
         if entries:
-            capped = entries[-self._MAX_RECENT_HISTORY:]
-            history_text = "\n".join(
-                f"- [{e['timestamp']}] {e['content']}" for e in capped
-            )
+            capped = entries[-self._MAX_RECENT_HISTORY :]
+            history_text = "\n".join(f"- [{e['timestamp']}] {e['content']}" for e in capped)
             history_text = truncate_text(history_text, self._MAX_HISTORY_CHARS)
             parts.append("# Recent History\n\n" + history_text)
 
         return "\n\n---\n\n".join(parts)
 
     def _get_identity(self, channel: str | None = None) -> str:
-        """Get the core identity section."""
+        """获取核心身份段落。"""
         workspace_path = str(self.workspace.expanduser().resolve())
         system = platform.system()
         runtime = f"{'macOS' if system == 'Darwin' else system} {platform.machine()}, Python {platform.python_version()}"
@@ -82,10 +91,13 @@ class ContextBuilder:
 
     @staticmethod
     def _build_runtime_context(
-        channel: str | None, chat_id: str | None, timezone: str | None = None,
-        session_summary: str | None = None, sender_id: str | None = None,
+        channel: str | None,
+        chat_id: str | None,
+        timezone: str | None = None,
+        session_summary: str | None = None,
+        sender_id: str | None = None,
     ) -> str:
-        """Build untrusted runtime metadata block for injection before the user message."""
+        """构建不受信任的运行时元数据块，用于注入到用户消息之前。"""
         lines = [f"Current Time: {current_time_str(timezone)}"]
         if channel and chat_id:
             lines += [f"Channel: {channel}", f"Chat ID: {chat_id}"]
@@ -93,7 +105,13 @@ class ContextBuilder:
             lines += [f"Sender ID: {sender_id}"]
         if session_summary:
             lines += ["", "[Resumed Session]", session_summary]
-        return ContextBuilder._RUNTIME_CONTEXT_TAG + "\n" + "\n".join(lines) + "\n" + ContextBuilder._RUNTIME_CONTEXT_END
+        return (
+            ContextBuilder._RUNTIME_CONTEXT_TAG
+            + "\n"
+            + "\n".join(lines)
+            + "\n"
+            + ContextBuilder._RUNTIME_CONTEXT_END
+        )
 
     @staticmethod
     def _merge_message_content(left: Any, right: Any) -> str | list[dict[str, Any]]:
@@ -102,7 +120,10 @@ class ContextBuilder:
 
         def _to_blocks(value: Any) -> list[dict[str, Any]]:
             if isinstance(value, list):
-                return [item if isinstance(item, dict) else {"type": "text", "text": str(item)} for item in value]
+                return [
+                    item if isinstance(item, dict) else {"type": "text", "text": str(item)}
+                    for item in value
+                ]
             if value is None:
                 return []
             return [{"type": "text", "text": str(value)}]
@@ -110,7 +131,7 @@ class ContextBuilder:
         return _to_blocks(left) + _to_blocks(right)
 
     def _load_bootstrap_files(self) -> str:
-        """Load all bootstrap files from workspace."""
+        """从工作区加载所有启动文件。"""
         parts = []
 
         for filename in self.BOOTSTRAP_FILES:
@@ -123,7 +144,7 @@ class ContextBuilder:
 
     @staticmethod
     def _is_template_content(content: str, template_path: str) -> bool:
-        """Check if *content* is identical to the bundled template (user hasn't customized it)."""
+        """检查 *content* 是否与内置模板相同（即用户尚未自定义）。"""
         with suppress(Exception):
             tpl = pkg_files("nanobot") / "templates" / template_path
             if tpl.is_file():
@@ -142,12 +163,14 @@ class ContextBuilder:
         session_summary: str | None = None,
         sender_id: str | None = None,
     ) -> list[dict[str, Any]]:
-        """Build the complete message list for an LLM call."""
-        runtime_ctx = self._build_runtime_context(channel, chat_id, self.timezone, session_summary=session_summary, sender_id=sender_id)
+        """为一次 LLM 调用构建完整消息列表。"""
+        runtime_ctx = self._build_runtime_context(
+            channel, chat_id, self.timezone, session_summary=session_summary, sender_id=sender_id
+        )
         user_content = self._build_user_content(current_message, media)
 
-        # Merge runtime context and user content into a single user message
-        # to avoid consecutive same-role messages that some providers reject.
+        # 将运行时上下文和用户内容合并到同一条用户消息，
+        # 避免某些提供商拒绝连续同角色消息。
         if isinstance(user_content, str):
             merged = f"{runtime_ctx}\n\n{user_content}"
         else:
@@ -165,7 +188,7 @@ class ContextBuilder:
         return messages
 
     def _build_user_content(self, text: str, media: list[str] | None) -> str | list[dict[str, Any]]:
-        """Build user message content with optional base64-encoded images."""
+        """构建用户消息内容，可包含 base64 编码图片。"""
         if not media:
             return text
 
@@ -179,36 +202,46 @@ class ContextBuilder:
             if not mime or not mime.startswith("image/"):
                 continue
             b64 = base64.b64encode(raw).decode()
-            images.append({
-                "type": "image_url",
-                "image_url": {"url": f"data:{mime};base64,{b64}"},
-                "_meta": {"path": str(p)},
-            })
+            images.append(
+                {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:{mime};base64,{b64}"},
+                    "_meta": {"path": str(p)},
+                }
+            )
 
         if not images:
             return text
         return images + [{"type": "text", "text": text}]
 
     def add_tool_result(
-        self, messages: list[dict[str, Any]],
-        tool_call_id: str, tool_name: str, result: Any,
+        self,
+        messages: list[dict[str, Any]],
+        tool_call_id: str,
+        tool_name: str,
+        result: Any,
     ) -> list[dict[str, Any]]:
-        """Add a tool result to the message list."""
-        messages.append({"role": "tool", "tool_call_id": tool_call_id, "name": tool_name, "content": result})
+        """向消息列表添加工具结果。"""
+        messages.append(
+            {"role": "tool", "tool_call_id": tool_call_id, "name": tool_name, "content": result}
+        )
         return messages
 
     def add_assistant_message(
-        self, messages: list[dict[str, Any]],
+        self,
+        messages: list[dict[str, Any]],
         content: str | None,
         tool_calls: list[dict[str, Any]] | None = None,
         reasoning_content: str | None = None,
         thinking_blocks: list[dict] | None = None,
     ) -> list[dict[str, Any]]:
-        """Add an assistant message to the message list."""
-        messages.append(build_assistant_message(
-            content,
-            tool_calls=tool_calls,
-            reasoning_content=reasoning_content,
-            thinking_blocks=thinking_blocks,
-        ))
+        """向消息列表添加助手消息。"""
+        messages.append(
+            build_assistant_message(
+                content,
+                tool_calls=tool_calls,
+                reasoning_content=reasoning_content,
+                thinking_blocks=thinking_blocks,
+            )
+        )
         return messages

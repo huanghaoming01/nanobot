@@ -29,7 +29,9 @@ class WhatsAppConfig(Base):
     bridge_url: str = "ws://localhost:3001"
     bridge_token: str = ""
     allow_from: list[str] = Field(default_factory=list)
-    group_policy: Literal["open", "mention"] = "open"  # "open" responds to all, "mention" only when @mentioned
+    group_policy: Literal["open", "mention"] = (
+        "open"  # "open" responds to all, "mention" only when @mentioned
+    )
 
 
 def _bridge_token_path() -> Path:
@@ -109,9 +111,7 @@ class WhatsAppChannel(BaseChannel):
 
         self.logger.info("Starting WhatsApp bridge for QR login...")
         try:
-            subprocess.run(
-                [shutil.which("npm"), "start"], cwd=bridge_dir, check=True, env=env
-            )
+            subprocess.run([shutil.which("npm"), "start"], cwd=bridge_dir, check=True, env=env)
         except subprocess.CalledProcessError:
             return False
 
@@ -253,7 +253,12 @@ class WhatsAppChannel(BaseChannel):
             if phone_id and lid_id:
                 self._lid_to_phone[lid_id] = phone_id
 
-            self.logger.info("Sender phone={} lid={} → sender_id={}", phone_id or "(empty)", lid_id or "(empty)", sender_id)
+            self.logger.info(
+                "Sender phone={} lid={} → sender_id={}",
+                phone_id or "(empty)",
+                lid_id or "(empty)",
+                sender_id,
+            )
 
             # Extract media paths (images/documents/videos downloaded by the bridge)
             media_paths = data.get("media") or []
@@ -265,7 +270,9 @@ class WhatsAppChannel(BaseChannel):
                     transcription = await self.transcribe_audio(media_paths[0])
                     if transcription:
                         content = transcription
-                        self.logger.info("Transcribed voice from {}: {}...", sender_id, transcription[:50])
+                        self.logger.info(
+                            "Transcribed voice from {}: {}...", sender_id, transcription[:50]
+                        )
                     else:
                         content = "[Voice Message: Transcription failed]"
                 else:

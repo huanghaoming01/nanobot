@@ -93,12 +93,18 @@ class HeartbeatService:
 
         response = await self.provider.chat_with_retry(
             messages=[
-                {"role": "system", "content": "You are a heartbeat agent. Call the heartbeat tool to report your decision."},
-                {"role": "user", "content": (
-                    f"Current Time: {current_time_str(self.timezone)}\n\n"
-                    "Review the following HEARTBEAT.md and decide whether there are active tasks.\n\n"
-                    f"{content}"
-                )},
+                {
+                    "role": "system",
+                    "content": "You are a heartbeat agent. Call the heartbeat tool to report your decision.",
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"Current Time: {current_time_str(self.timezone)}\n\n"
+                        "Review the following HEARTBEAT.md and decide whether there are active tasks.\n\n"
+                        f"{content}"
+                    ),
+                },
             ],
             tools=_HEARTBEAT_TOOL,
             model=self.model,
@@ -215,7 +221,10 @@ class HeartbeatService:
                     return
 
                 should_notify = await evaluate_response(
-                    response, tasks, self.provider, self.model,
+                    response,
+                    tasks,
+                    self.provider,
+                    self.model,
                 )
                 if should_notify and self.on_notify:
                     logger.info("Heartbeat: completed, delivering response")

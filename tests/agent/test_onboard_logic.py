@@ -8,7 +8,6 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
 
-import pytest
 from pydantic import BaseModel, Field
 
 from nanobot.cli import onboard as onboard_wizard
@@ -197,6 +196,7 @@ class TestGetFieldTypeInfo:
 
     def test_handles_none_annotation(self):
         """Field with None annotation defaults to str."""
+
         class Model(BaseModel):
             field: Any = None
 
@@ -505,7 +505,9 @@ class TestRunOnboardExitBehavior:
 
         monkeypatch.setattr(onboard_wizard, "_show_main_menu_header", lambda: None)
         monkeypatch.setattr(onboard_wizard, "questionary", SimpleNamespace(select=fake_select))
-        monkeypatch.setattr(onboard_wizard, "_configure_general_settings", fake_configure_general_settings)
+        monkeypatch.setattr(
+            onboard_wizard, "_configure_general_settings", fake_configure_general_settings
+        )
 
         result = run_onboard(initial_config=initial_config)
 
@@ -636,8 +638,8 @@ class TestValidateFieldConstraint:
 
     def test_real_send_max_retries_field(self):
         """Validate against the actual ChannelsConfig.send_max_retries field."""
-        from nanobot.config.schema import ChannelsConfig
         from nanobot.cli.onboard import _validate_field_constraint
+        from nanobot.config.schema import ChannelsConfig
 
         field_info = ChannelsConfig.model_fields["send_max_retries"]
         assert _validate_field_constraint(3, field_info) is None
@@ -829,12 +831,11 @@ class TestMainMenuUpdate:
 
     def test_main_menu_dispatch_includes_channel_common(self):
         """Main menu dispatch should route [H] to Channel Common."""
-        from nanobot.cli.onboard import run_onboard
 
         # We verify by checking the dispatch table is set up correctly
         # The menu items are defined inline in run_onboard, so we test
         # that _configure_general_settings handles the new sections.
-        from nanobot.cli.onboard import _SETTINGS_SECTIONS, _SETTINGS_GETTER, _SETTINGS_SETTER
+        from nanobot.cli.onboard import _SETTINGS_GETTER, _SETTINGS_SECTIONS, _SETTINGS_SETTER
 
         assert "Channel Common" in _SETTINGS_SECTIONS
         assert "Channel Common" in _SETTINGS_GETTER
@@ -842,7 +843,7 @@ class TestMainMenuUpdate:
 
     def test_main_menu_dispatch_includes_api_server(self):
         """Main menu dispatch should route [I] to API Server."""
-        from nanobot.cli.onboard import _SETTINGS_SECTIONS, _SETTINGS_GETTER, _SETTINGS_SETTER
+        from nanobot.cli.onboard import _SETTINGS_GETTER, _SETTINGS_SECTIONS, _SETTINGS_SETTER
 
         assert "API Server" in _SETTINGS_SECTIONS
         assert "API Server" in _SETTINGS_GETTER
@@ -852,11 +853,13 @@ class TestMainMenuUpdate:
         """run_onboard should handle [H] Channel Common correctly."""
         initial_config = Config()
 
-        responses = iter([
-            "[H] Channel Common",
-            KeyboardInterrupt(),
-            "[S] Save and Exit",
-        ])
+        responses = iter(
+            [
+                "[H] Channel Common",
+                KeyboardInterrupt(),
+                "[S] Save and Exit",
+            ]
+        )
 
         class FakePrompt:
             def __init__(self, response):
@@ -876,7 +879,9 @@ class TestMainMenuUpdate:
 
         monkeypatch.setattr(onboard_wizard, "_show_main_menu_header", lambda: None)
         monkeypatch.setattr(onboard_wizard, "questionary", SimpleNamespace(select=fake_select))
-        monkeypatch.setattr(onboard_wizard, "_configure_general_settings", fake_configure_general_settings)
+        monkeypatch.setattr(
+            onboard_wizard, "_configure_general_settings", fake_configure_general_settings
+        )
 
         result = run_onboard(initial_config=initial_config)
 
@@ -887,11 +892,13 @@ class TestMainMenuUpdate:
         """run_onboard should handle [I] API Server correctly."""
         initial_config = Config()
 
-        responses = iter([
-            "[I] API Server",
-            KeyboardInterrupt(),
-            "[S] Save and Exit",
-        ])
+        responses = iter(
+            [
+                "[I] API Server",
+                KeyboardInterrupt(),
+                "[S] Save and Exit",
+            ]
+        )
 
         class FakePrompt:
             def __init__(self, response):
@@ -911,7 +918,9 @@ class TestMainMenuUpdate:
 
         monkeypatch.setattr(onboard_wizard, "_show_main_menu_header", lambda: None)
         monkeypatch.setattr(onboard_wizard, "questionary", SimpleNamespace(select=fake_select))
-        monkeypatch.setattr(onboard_wizard, "_configure_general_settings", fake_configure_general_settings)
+        monkeypatch.setattr(
+            onboard_wizard, "_configure_general_settings", fake_configure_general_settings
+        )
 
         result = run_onboard(initial_config=initial_config)
 
@@ -923,10 +932,12 @@ class TestMainMenuUpdate:
         initial_config = Config()
         pause_called = {"n": 0}
 
-        responses = iter([
-            "[V] View Configuration Summary",
-            "[S] Save and Exit",
-        ])
+        responses = iter(
+            [
+                "[V] View Configuration Summary",
+                "[S] Save and Exit",
+            ]
+        )
 
         class FakePrompt:
             def __init__(self, response):
@@ -994,6 +1005,7 @@ class TestIsStrOrNone:
 
     def test_optional_str_true(self):
         from typing import Optional
+
         from nanobot.cli.onboard import _is_str_or_none
 
         assert _is_str_or_none(Optional[str]) is True
@@ -1015,7 +1027,7 @@ class TestConfigurePydanticModelEmptyString:
     def test_optional_str_empty_string_becomes_none(self, monkeypatch):
         """Entering '' for an optional str field should set it to None."""
         from pydantic import BaseModel
-        from nanobot.cli.onboard import _is_str_or_none
+
 
         class M(BaseModel):
             api_key: str | None = None
@@ -1037,9 +1049,7 @@ class TestConfigurePydanticModelEmptyString:
         monkeypatch.setattr(onboard_wizard, "_select_with_back", fake_select)
         monkeypatch.setattr(onboard_wizard, "_show_config_panel", lambda *a, **kw: None)
         # Simulate user entering empty string
-        monkeypatch.setattr(
-            onboard_wizard, "_input_with_existing", lambda *a, **kw: ""
-        )
+        monkeypatch.setattr(onboard_wizard, "_input_with_existing", lambda *a, **kw: "")
 
         result = _configure_pydantic_model(model, "Test")
         assert result is not None
@@ -1067,9 +1077,7 @@ class TestConfigurePydanticModelEmptyString:
 
         monkeypatch.setattr(onboard_wizard, "_select_with_back", fake_select)
         monkeypatch.setattr(onboard_wizard, "_show_config_panel", lambda *a, **kw: None)
-        monkeypatch.setattr(
-            onboard_wizard, "_input_with_existing", lambda *a, **kw: ""
-        )
+        monkeypatch.setattr(onboard_wizard, "_input_with_existing", lambda *a, **kw: "")
 
         result = _configure_pydantic_model(model, "Test")
         assert result is not None

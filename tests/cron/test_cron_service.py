@@ -244,12 +244,14 @@ async def test_running_service_honors_external_disable(tmp_path) -> None:
 
 def test_remove_job_refuses_system_jobs(tmp_path) -> None:
     service = CronService(tmp_path / "cron" / "jobs.json")
-    service.register_system_job(CronJob(
-        id="dream",
-        name="dream",
-        schedule=CronSchedule(kind="cron", expr="0 */2 * * *", tz="UTC"),
-        payload=CronPayload(kind="system_event"),
-    ))
+    service.register_system_job(
+        CronJob(
+            id="dream",
+            name="dream",
+            schedule=CronSchedule(kind="cron", expr="0 */2 * * *", tz="UTC"),
+            payload=CronPayload(kind="system_event"),
+        )
+    )
 
     result = service.remove_job("dream")
 
@@ -261,6 +263,7 @@ def test_remove_job_refuses_system_jobs(tmp_path) -> None:
 async def test_start_server_not_jobs(tmp_path):
     store_path = tmp_path / "cron" / "jobs.json"
     called = []
+
     async def on_job(job):
         called.append(job.name)
 
@@ -499,12 +502,14 @@ def test_update_job_not_found(tmp_path) -> None:
 
 def test_update_job_rejects_system_job(tmp_path) -> None:
     service = CronService(tmp_path / "cron" / "jobs.json")
-    service.register_system_job(CronJob(
-        id="dream",
-        name="dream",
-        schedule=CronSchedule(kind="cron", expr="0 */2 * * *", tz="UTC"),
-        payload=CronPayload(kind="system_event"),
-    ))
+    service.register_system_job(
+        CronJob(
+            id="dream",
+            name="dream",
+            schedule=CronSchedule(kind="cron", expr="0 */2 * * *", tz="UTC"),
+            payload=CronPayload(kind="system_event"),
+        )
+    )
     result = service.update_job("dream", name="hacked")
     assert result == "protected"
     assert service.get_job("dream").name == "dream"
@@ -527,6 +532,7 @@ def test_update_job_validates_schedule(tmp_path) -> None:
 @pytest.mark.asyncio
 async def test_update_job_preserves_run_history(tmp_path) -> None:
     import asyncio
+
     store_path = tmp_path / "cron" / "jobs.json"
     service = CronService(store_path, on_job=lambda _: asyncio.sleep(0))
     job = service.add_job(

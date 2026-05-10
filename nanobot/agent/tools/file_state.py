@@ -1,4 +1,4 @@
-"""Track file-read state for read-before-edit warnings and read deduplication."""
+"""跟踪文件读取状态，用于编辑前读取警告和读取去重。"""
 
 from __future__ import annotations
 
@@ -26,11 +26,10 @@ def _hash_file(p: str) -> str | None:
 
 
 class FileStates:
-    """Per-session read/write tracker.
+    """每个会话的读写跟踪器。
 
-    Owns its own state dict so read-dedup ("File unchanged since last read")
-    and read-before-edit warnings stay scoped to one agent session and do
-    not leak across sessions sharing this process.
+    每个实例拥有自己的状态字典，让读取去重（"File unchanged since last read"）
+    和编辑前读取警告限定在单个 agent 会话内，不会泄漏到同一进程中的其他会话。
     """
 
     __slots__ = ("_state",)
@@ -39,7 +38,7 @@ class FileStates:
         self._state: dict[str, ReadState] = {}
 
     def record_read(self, path: str | Path, offset: int = 1, limit: int | None = None) -> None:
-        """Record that a file was read (called after successful read)."""
+        """记录文件已被读取（成功读取后调用）。"""
         p = str(Path(path).resolve())
         try:
             mtime = os.path.getmtime(p)
@@ -54,7 +53,7 @@ class FileStates:
         )
 
     def record_write(self, path: str | Path) -> None:
-        """Record that a file was written (updates mtime in state)."""
+        """记录文件已被写入（更新状态中的 mtime）。"""
         p = str(Path(path).resolve())
         try:
             mtime = os.path.getmtime(p)
@@ -70,11 +69,11 @@ class FileStates:
         )
 
     def check_read(self, path: str | Path) -> str | None:
-        """Check if a file has been read and is fresh.
+        """检查文件是否已读取且仍然新鲜。
 
-        Returns None if OK, or a warning string.
-        When mtime changed but file content is identical (e.g. touch, editor save),
-        the check passes to avoid false-positive staleness warnings.
+        如果正常则返回 None，否则返回警告字符串。
+        当 mtime 变化但文件内容相同（例如 touch 或编辑器保存）时，
+        校验会通过，以避免误报过期警告。
         """
         p = str(Path(path).resolve())
         entry = self._state.get(p)
@@ -89,13 +88,13 @@ class FileStates:
                 entry.mtime = current_mtime
                 return None
             return "Warning: file has been modified since last read. Re-read to verify content before editing."
-        # mtime unchanged - still check content hash to detect quick modifications
+        # mtime 未变化：仍检查内容哈希，以检测快速修改
         if entry.content_hash and _hash_file(p) != entry.content_hash:
             return "Warning: file has been modified since last read. Re-read to verify content before editing."
         return None
 
     def is_unchanged(self, path: str | Path, offset: int = 1, limit: int | None = None) -> bool:
-        """Return True if file was previously read with same params and content is unchanged."""
+        """如果文件之前以相同参数读取且内容未变化，则返回 True。"""
         p = str(Path(path).resolve())
         entry = self._state.get(p)
         if entry is None:
@@ -109,29 +108,29 @@ class FileStates:
         except OSError:
             return False
         if current_mtime != entry.mtime:
-            # mtime changed - check if content also changed
+            # mtime 已变化：检查内容是否也变化
             current_hash = _hash_file(p)
             if current_hash != entry.content_hash:
-                # Content actually changed - don't dedup
+                # 内容确实变化：不去重
                 entry.can_dedup = False
                 return False
-            # Content identical despite mtime change (e.g. touch) - mark as not dedupable to force full read next time
+            # mtime 变化但内容相同（例如 touch）：标记为不可去重，强制下次完整读取
             entry.can_dedup = False
             return True
-        # mtime unchanged - content must be identical
+        # mtime 未变化：内容必须相同
         return True
 
     def get(self, path: str | Path) -> ReadState | None:
-        """Return the raw ReadState entry for a path, or None."""
+        """返回路径对应的原始 ReadState 记录；没有则返回 None。"""
         return self._state.get(str(Path(path).resolve()))
 
     def clear(self) -> None:
-        """Clear all tracked state (useful for testing)."""
+        """清除所有跟踪状态（便于测试）。"""
         self._state.clear()
 
 
 class FileStateStore:
-    """Lookup table for per-session file read/write state."""
+    """每个会话文件读写状态的查找表。"""
 
     __slots__ = ("_states_by_key",)
 
@@ -157,12 +156,12 @@ _current_file_states: ContextVar[FileStates | None] = ContextVar(
 
 
 def current_file_states(default: FileStates) -> FileStates:
-    """Return the FileStates bound to the current agent task, or a fallback."""
+    """返回绑定到当前 agent 任务的 FileStates；没有则使用回退值。"""
     return _current_file_states.get() or default
 
 
 def bind_file_states(file_states: FileStates) -> Token[FileStates | None]:
-    """Bind file read/write state for the current async task."""
+    """为当前异步任务绑定文件读写状态。"""
     return _current_file_states.set(file_states)
 
 
@@ -170,9 +169,8 @@ def reset_file_states(token: Token[FileStates | None]) -> None:
     _current_file_states.reset(token)
 
 
-# Module-level default instance, retained for backward compatibility with
-# tests and callers that reach in directly. Per-session callers should hold
-# their own FileStates instance instead of touching this one.
+# 模块级默认实例，为了向后兼容直接访问的测试和调用方而保留。
+# 按会话工作的调用方应持有自己的 FileStates 实例，而不是触碰此实例。
 _default = FileStates()
 
 
@@ -196,9 +194,8 @@ def clear() -> None:
     _default.clear()
 
 
-# Legacy attribute for callers that reached into the module-level dict
-# directly (filesystem.py used to do this). Kept as a property-like accessor
-# so existing imports keep working.
+# 旧版属性，用于兼容直接访问模块级字典的调用方（filesystem.py 曾这样做）。
+# 以类似 property 的访问器保留，确保现有导入继续工作。
 def __getattr__(name: str):
     if name == "_state":
         return _default._state

@@ -76,7 +76,9 @@ class TestConsolidatorArchiveErrorHandling:
     See https://github.com/HKUDS/nanobot/issues/3244
     """
 
-    async def test_archive_falls_back_on_error_finish_reason(self, consolidator, mock_provider, store):
+    async def test_archive_falls_back_on_error_finish_reason(
+        self, consolidator, mock_provider, store
+    ):
         """LLM returning finish_reason='error' should trigger raw_archive, not write error text."""
         mock_provider.chat_with_retry.return_value = MagicMock(
             content="Error: {'type': 'error', 'error': {'type': 'overloaded_error', 'message': 'overloaded_error (529)'}}",
@@ -195,7 +197,9 @@ class TestConsolidatorTokenBudget:
         archived_chunk = consolidator.archive.await_args.args[0]
         assert [m["role"] for m in archived_chunk] == ["user", "assistant", "tool"]
         assert session.last_consolidated == 3
-        assert session.get_history(max_messages=2) == [{"role": "assistant", "content": "final answer"}]
+        assert session.get_history(max_messages=2) == [
+            {"role": "assistant", "content": "final answer"}
+        ]
 
     async def test_large_chunk_archived_without_cap(self, consolidator):
         """Without chunk cap, the full range from pick_consolidation_boundary is archived."""
@@ -234,8 +238,7 @@ class TestConsolidatorTokenBudget:
         session.last_consolidated = 0
         session.key = "test:key"
         session.messages = [
-            {"role": "user" if i in {0, 50} else "assistant", "content": f"m{i}"}
-            for i in range(70)
+            {"role": "user" if i in {0, 50} else "assistant", "content": f"m{i}"} for i in range(70)
         ]
         session.metadata = {}
         consolidator.estimate_session_prompt_tokens = MagicMock(
@@ -264,9 +267,7 @@ class TestConsolidatorTokenBudget:
         ]
         session.metadata = {}
         # Keep estimates high so the loop would otherwise run multiple rounds.
-        consolidator.estimate_session_prompt_tokens = MagicMock(
-            return_value=(1200, "tiktoken")
-        )
+        consolidator.estimate_session_prompt_tokens = MagicMock(return_value=(1200, "tiktoken"))
         consolidator.archive = AsyncMock(return_value=None)
 
         await consolidator.maybe_consolidate_by_tokens(session)
@@ -346,7 +347,9 @@ class TestArchiveTruncation:
         # Should be significantly shorter than 100K
         assert len(user_content) < 50_000
 
-    async def test_archive_truncates_with_small_token_budget(self, consolidator, mock_provider, store):
+    async def test_archive_truncates_with_small_token_budget(
+        self, consolidator, mock_provider, store
+    ):
         """Small context window: truncation uses actual tokenizer count."""
         consolidator.context_window_tokens = 500
         big_messages = [{"role": "user", "content": "word " * 50_000}]
@@ -361,7 +364,9 @@ class TestArchiveTruncation:
         # Should be truncated
         assert len(user_content) < 250_000
 
-    async def test_oversized_summary_is_capped_before_append(self, consolidator, mock_provider, store):
+    async def test_oversized_summary_is_capped_before_append(
+        self, consolidator, mock_provider, store
+    ):
         """A pathologically large LLM summary must not land full-length in
         history.jsonl — that would re-open the #3412 bloat vector from the
         *success* path instead of the fallback path."""
@@ -374,7 +379,9 @@ class TestArchiveTruncation:
         entry = store.read_unprocessed_history(since_cursor=0)[0]
         assert len(entry["content"]) <= _ARCHIVE_SUMMARY_MAX_CHARS + 50
 
-    async def test_archive_truncates_via_tiktoken_with_positive_budget(self, consolidator, mock_provider, store):
+    async def test_archive_truncates_via_tiktoken_with_positive_budget(
+        self, consolidator, mock_provider, store
+    ):
         """Positive token budget should use tiktoken for precise truncation."""
         consolidator.context_window_tokens = 10_000
         consolidator._SAFETY_BUFFER = 0
@@ -386,6 +393,7 @@ class TestArchiveTruncation:
         await consolidator.archive(big_messages)
 
         import tiktoken
+
         enc = tiktoken.get_encoding("cl100k_base")
         sent_content = mock_provider.chat_with_retry.call_args.kwargs["messages"][1]["content"]
         token_count = len(enc.encode(sent_content))

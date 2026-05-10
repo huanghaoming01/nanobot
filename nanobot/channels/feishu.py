@@ -447,7 +447,9 @@ class FeishuChannel(BaseChannel):
                 data = json.loads(response.raw.content)
                 bot = (data.get("data") or data).get("bot") or data.get("bot") or {}
                 return bot.get("open_id")
-            self.logger.warning("Failed to get bot info: code={}, msg={}", response.code, response.msg)
+            self.logger.warning(
+                "Failed to get bot info: code={}, msg={}", response.code, response.msg
+            )
             return None
         except Exception as e:
             self.logger.warning("Error fetching bot info: {}", e)
@@ -919,7 +921,9 @@ class FeishuChannel(BaseChannel):
                 response = self._client.im.v1.image.create(request)
                 if response.success():
                     image_key = response.data.image_key
-                    self.logger.debug("Uploaded image {}: {}", os.path.basename(file_path), image_key)
+                    self.logger.debug(
+                        "Uploaded image {}: {}", os.path.basename(file_path), image_key
+                    )
                     return image_key
                 else:
                     self.logger.error(
@@ -1138,7 +1142,9 @@ class FeishuChannel(BaseChannel):
             self.logger.debug("error fetching parent message {}: {}", message_id, e)
             return None
 
-    def _reply_message_sync(self, parent_message_id: str, msg_type: str, content: str, *, reply_in_thread: bool = False) -> bool:
+    def _reply_message_sync(
+        self, parent_message_id: str, msg_type: str, content: str, *, reply_in_thread: bool = False
+    ) -> bool:
         """Reply to an existing Feishu message using the Reply API (synchronous).
 
         Args:
@@ -1272,13 +1278,21 @@ class FeishuChannel(BaseChannel):
                 )
                 if reply_message_id:
                     sent = self._reply_message_sync(
-                        reply_message_id, "interactive", card_content,
+                        reply_message_id,
+                        "interactive",
+                        card_content,
                         reply_in_thread=reply_in_thread,
                     )
                 else:
-                    sent = self._send_message_sync(
-                        receive_id_type, chat_id, "interactive", card_content,
-                    ) is not None
+                    sent = (
+                        self._send_message_sync(
+                            receive_id_type,
+                            chat_id,
+                            "interactive",
+                            card_content,
+                        )
+                        is not None
+                    )
                 if sent:
                     return card_id
                 self.logger.warning(
@@ -1422,9 +1436,7 @@ class FeishuChannel(BaseChannel):
                     "Streaming card {} final update failed, falling back to regular card",
                     buf.card_id,
                 )
-            for chunk in self._split_elements_by_table_limit(
-                self._build_card_elements(buf.text)
-            ):
+            for chunk in self._split_elements_by_table_limit(self._build_card_elements(buf.text)):
                 card = json.dumps(
                     {"config": {"wide_screen_mode": True}, "elements": chunk},
                     ensure_ascii=False,
@@ -1434,8 +1446,11 @@ class FeishuChannel(BaseChannel):
                 fallback_msg_id = self._thread_reply_target(meta)
                 if fallback_msg_id:
                     await loop.run_in_executor(
-                        None, lambda: self._reply_message_sync(
-                            fallback_msg_id, "interactive", card,
+                        None,
+                        lambda: self._reply_message_sync(
+                            fallback_msg_id,
+                            "interactive",
+                            card,
                             reply_in_thread=self._should_use_reply_in_thread(meta),
                         ),
                     )
@@ -1513,22 +1528,33 @@ class FeishuChannel(BaseChannel):
                 # with the same 🔧 prefix style. Existing topics stay threaded;
                 # new topics are created only when reply-to-message is enabled.
                 card = json.dumps(
-                    {"config": {"wide_screen_mode": True}, "elements": [
-                        {"tag": "markdown", "content": self._format_tool_hint_delta(hint)},
-                    ]},
+                    {
+                        "config": {"wide_screen_mode": True},
+                        "elements": [
+                            {"tag": "markdown", "content": self._format_tool_hint_delta(hint)},
+                        ],
+                    },
                     ensure_ascii=False,
                 )
                 _th_msg_id = self._thread_reply_target(msg.metadata)
                 if _th_msg_id:
                     await loop.run_in_executor(
-                        None, lambda: self._reply_message_sync(
-                            _th_msg_id, "interactive", card,
+                        None,
+                        lambda: self._reply_message_sync(
+                            _th_msg_id,
+                            "interactive",
+                            card,
                             reply_in_thread=self._should_use_reply_in_thread(msg.metadata),
                         ),
                     )
                 else:
                     await loop.run_in_executor(
-                        None, self._send_message_sync, receive_id_type, msg.chat_id, "interactive", card
+                        None,
+                        self._send_message_sync,
+                        receive_id_type,
+                        msg.chat_id,
+                        "interactive",
+                        card,
                     )
                 return
 
@@ -1560,7 +1586,9 @@ class FeishuChannel(BaseChannel):
                     # If we're in a topic, always use reply to stay in the topic
                     if has_thread_id:
                         ok = self._reply_message_sync(
-                            reply_message_id, m_type, content,
+                            reply_message_id,
+                            m_type,
+                            content,
                             reply_in_thread=self._should_use_reply_in_thread(msg.metadata),
                         )
                         if ok:
@@ -1569,7 +1597,9 @@ class FeishuChannel(BaseChannel):
                         # If we're not in a topic but replying to message, only first uses reply
                         first_send = False
                         ok = self._reply_message_sync(
-                            reply_message_id, m_type, content,
+                            reply_message_id,
+                            m_type,
+                            content,
                             reply_in_thread=self._should_use_reply_in_thread(msg.metadata),
                         )
                         if ok:
@@ -1685,9 +1715,7 @@ class FeishuChannel(BaseChannel):
                 self._processed_message_ids.popitem(last=False)
 
             # Add reaction (non-blocking — tracked background task)
-            task = asyncio.create_task(
-                self._add_reaction(message_id, self.config.react_emoji)
-            )
+            task = asyncio.create_task(self._add_reaction(message_id, self.config.react_emoji))
             self._background_tasks.add(task)
             task.add_done_callback(self._on_background_task_done)
             task.add_done_callback(lambda t: self._on_reaction_added(message_id, t))
@@ -1866,6 +1894,4 @@ class FeishuChannel(BaseChannel):
     def _format_tool_hint_delta(self, tool_hint: str) -> str:
         """Format a tool hint string with the 🔧 prefix for each line."""
         lines = self.__class__._format_tool_hint_lines(tool_hint).split("\n")
-        return "\n".join(
-            f"{self.config.tool_hint_prefix} {ln}" for ln in lines if ln.strip()
-        )
+        return "\n".join(f"{self.config.tool_hint_prefix} {ln}" for ln in lines if ln.strip())

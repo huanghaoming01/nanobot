@@ -78,6 +78,7 @@ class TestSessionTTLConfig:
     def test_session_file_cap_is_internal_constant(self):
         """Session file cap should remain an internal constant, not a config field."""
         from nanobot.session.manager import FILE_MAX_MESSAGES
+
         assert FILE_MAX_MESSAGES == 2000
 
 
@@ -133,10 +134,14 @@ class TestAgentLoopTTLParam:
 
         session = loop.sessions.get_or_create("cli:direct")
         from nanobot.session.manager import FILE_MAX_MESSAGES
+
         assert len(session.messages) <= FILE_MAX_MESSAGES
 
-    def test_session_enforce_file_cap_skips_archive_when_dropped_prefix_already_consolidated(self, tmp_path):
+    def test_session_enforce_file_cap_skips_archive_when_dropped_prefix_already_consolidated(
+        self, tmp_path
+    ):
         from nanobot.session.manager import Session
+
         archive_fn = MagicMock()
         session = Session(key="cli:direct")
         for i in range(8):
@@ -150,6 +155,7 @@ class TestAgentLoopTTLParam:
 
     def test_session_enforce_file_cap_archives_only_unconsolidated_dropped_prefix(self, tmp_path):
         from nanobot.session.manager import Session
+
         archive_fn = MagicMock()
         session = Session(key="cli:direct")
         for i in range(8):
@@ -440,16 +446,15 @@ class TestAutoCompactSystemMessages:
         await loop.auto_compact._archive("cli:test")
 
         msg = InboundMessage(
-            channel="system", sender_id="subagent", chat_id="cli:test",
+            channel="system",
+            sender_id="subagent",
+            chat_id="cli:test",
             content="subagent result",
         )
         await loop._process_message(msg)
 
         session_after = loop.sessions.get_or_create("cli:test")
-        assert not any(
-            m["content"] == "old user 0"
-            for m in session_after.messages
-        )
+        assert not any(m["content"] == "old user 0" for m in session_after.messages)
         await loop.close_mcp()
 
 
@@ -570,7 +575,9 @@ class TestAutoCompactIntegration:
         )
 
         msg = InboundMessage(
-            channel="cli", sender_id="user", chat_id="test",
+            channel="cli",
+            sender_id="user",
+            chat_id="test",
             content="Let's continue, teach me present perfect",
         )
         response = await loop._process_message(msg)
@@ -618,7 +625,9 @@ class TestAutoCompactIntegration:
         await loop.auto_compact._archive("cli:test")
 
         msg = InboundMessage(
-            channel="cli", sender_id="user", chat_id="test",
+            channel="cli",
+            sender_id="user",
+            chat_id="test",
             content="Paragraph one\n\nParagraph two\n\nParagraph three",
         )
         await loop._process_message(msg)
@@ -949,7 +958,9 @@ class TestProactiveAutoCompact:
         assert archive_count == 1
 
         # User returns, sends new messages
-        msg = InboundMessage(channel="cli", sender_id="user", chat_id="test", content="second topic")
+        msg = InboundMessage(
+            channel="cli", sender_id="user", chat_id="test", content="second topic"
+        )
         await loop._process_message(msg)
 
         # Simulate idle again

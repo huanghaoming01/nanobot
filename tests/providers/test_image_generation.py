@@ -108,7 +108,9 @@ async def test_openrouter_image_generation_payload_and_response(tmp_path: Path) 
     assert body["modalities"] == ["image", "text"]
     assert body["image_config"] == {"aspect_ratio": "16:9", "image_size": "2K"}
     assert body["messages"][0]["content"][0] == {"type": "text", "text": "make this blue"}
-    assert body["messages"][0]["content"][1]["image_url"]["url"].startswith("data:image/png;base64,")
+    assert body["messages"][0]["content"][1]["image_url"]["url"].startswith(
+        "data:image/png;base64,"
+    )
 
 
 @pytest.mark.asyncio

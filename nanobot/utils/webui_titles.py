@@ -95,8 +95,7 @@ async def maybe_generate_webui_title(
                 {
                     "role": "system",
                     "content": (
-                        "You write short, neutral chat titles. "
-                        "Return only the title text."
+                        "You write short, neutral chat titles. Return only the title text."
                     ),
                 },
                 {"role": "user", "content": prompt},

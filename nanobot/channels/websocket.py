@@ -273,18 +273,22 @@ _MAX_VIDEO_BYTES = 20 * 1024 * 1024
 
 # Image MIME whitelist — matches the Composer's ``accept`` list. SVG is
 # explicitly excluded to avoid the XSS surface inside embedded scripts.
-_IMAGE_MIME_ALLOWED: frozenset[str] = frozenset({
-    "image/png",
-    "image/jpeg",
-    "image/webp",
-    "image/gif",
-})
+_IMAGE_MIME_ALLOWED: frozenset[str] = frozenset(
+    {
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+        "image/gif",
+    }
+)
 
-_VIDEO_MIME_ALLOWED: frozenset[str] = frozenset({
-    "video/mp4",
-    "video/webm",
-    "video/quicktime",
-})
+_VIDEO_MIME_ALLOWED: frozenset[str] = frozenset(
+    {
+        "video/mp4",
+        "video/webm",
+        "video/quicktime",
+    }
+)
 
 _UPLOAD_MIME_ALLOWED: frozenset[str] = _IMAGE_MIME_ALLOWED | _VIDEO_MIME_ALLOWED
 
@@ -388,15 +392,17 @@ def _b64url_decode(s: str) -> bytes:
 # outside this set is degraded to ``application/octet-stream`` so an
 # attacker who somehow gets a signed URL for an unexpected file type can't
 # trick the browser into sniffing executable content.
-_MEDIA_ALLOWED_MIMES: frozenset[str] = frozenset({
-    "image/png",
-    "image/jpeg",
-    "image/webp",
-    "image/gif",
-    "video/mp4",
-    "video/webm",
-    "video/quicktime",
-})
+_MEDIA_ALLOWED_MIMES: frozenset[str] = frozenset(
+    {
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+        "image/gif",
+        "video/mp4",
+        "video/webm",
+        "video/quicktime",
+    }
+)
 
 
 def _issue_route_secret_matches(headers: Any, configured_secret: str) -> bool:
@@ -549,9 +555,7 @@ class WebSocketChannel(BaseChannel):
         token_value = f"nbwt_{secrets.token_urlsafe(32)}"
         self._issued_tokens[token_value] = time.monotonic() + float(self.config.token_ttl_s)
 
-        return _http_json_response(
-            {"token": token_value, "expires_in": self.config.token_ttl_s}
-        )
+        return _http_json_response({"token": token_value, "expires_in": self.config.token_ttl_s})
 
     # -- HTTP dispatch ------------------------------------------------------
 
@@ -632,9 +636,7 @@ class WebSocketChannel(BaseChannel):
     def _check_api_token(self, request: WsRequest) -> bool:
         """Validate a request against the API token pool (multi-use, TTL-bound)."""
         self._purge_expired_api_tokens()
-        token = _bearer_token(request.headers) or _query_first(
-            _parse_query(request.path), "token"
-        )
+        token = _bearer_token(request.headers) or _query_first(_parse_query(request.path), "token")
         if not token:
             return False
         expiry = self._api_tokens.get(token)
@@ -981,9 +983,7 @@ class WebSocketChannel(BaseChannel):
         except (OSError, ValueError):
             return None
         payload = _b64url_encode(rel.as_posix().encode("utf-8"))
-        mac = hmac.new(
-            self._media_secret, payload.encode("ascii"), hashlib.sha256
-        ).digest()[:16]
+        mac = hmac.new(self._media_secret, payload.encode("ascii"), hashlib.sha256).digest()[:16]
         return f"/api/media/{_b64url_encode(mac)}/{payload}"
 
     def _sign_or_stage_media_path(self, path: Path) -> dict[str, str] | None:
@@ -1264,7 +1264,9 @@ class WebSocketChannel(BaseChannel):
         image_count = 0
         video_count = 0
         for item in media:
-            mime = _extract_data_url_mime(item.get("data_url", "")) if isinstance(item, dict) else None
+            mime = (
+                _extract_data_url_mime(item.get("data_url", "")) if isinstance(item, dict) else None
+            )
             if mime in _VIDEO_MIME_ALLOWED:
                 video_count += 1
             elif mime in _IMAGE_MIME_ALLOWED:
@@ -1282,9 +1284,7 @@ class WebSocketChannel(BaseChannel):
                 try:
                     Path(p).unlink(missing_ok=True)
                 except OSError as exc:
-                    self.logger.warning(
-                        "failed to unlink partial media {}: {}", p, exc
-                    )
+                    self.logger.warning("failed to unlink partial media {}: {}", p, exc)
             return [], reason
 
         for item in media:
@@ -1302,7 +1302,9 @@ class WebSocketChannel(BaseChannel):
             max_bytes = _MAX_VIDEO_BYTES if is_video else _MAX_IMAGE_BYTES
             try:
                 saved = save_base64_data_url(
-                    data_url, media_dir, max_bytes=max_bytes,
+                    data_url,
+                    media_dir,
+                    max_bytes=max_bytes,
                 )
             except FileSizeExceeded:
                 return _abort("size")
@@ -1350,15 +1352,19 @@ class WebSocketChannel(BaseChannel):
             if raw_media is not None:
                 if not isinstance(raw_media, list):
                     await self._send_event(
-                        connection, "error",
-                        detail="image_rejected", reason="malformed",
+                        connection,
+                        "error",
+                        detail="image_rejected",
+                        reason="malformed",
                     )
                     return
                 media_paths, reason = self._save_envelope_media(raw_media)
                 if reason is not None:
                     await self._send_event(
-                        connection, "error",
-                        detail="image_rejected", reason=reason,
+                        connection,
+                        "error",
+                        detail="image_rejected",
+                        reason=reason,
                     )
                     return
 

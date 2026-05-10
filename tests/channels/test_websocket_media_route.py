@@ -28,7 +28,6 @@ from nanobot.channels.websocket import (
 )
 from nanobot.session.manager import Session, SessionManager
 
-
 # PNG magic bytes + a couple of sentinel bytes so we can verify byte-for-byte
 # round-trip of the served payload. Stays under mimetype + size limits.
 _PNG_BYTES = (
@@ -67,9 +66,7 @@ def bus() -> MagicMock:
     return b
 
 
-async def _http_get(
-    url: str, headers: dict[str, str] | None = None
-) -> httpx.Response:
+async def _http_get(url: str, headers: dict[str, str] | None = None) -> httpx.Response:
     return await asyncio.to_thread(
         functools.partial(httpx.get, url, headers=headers or {}, timeout=5.0)
     )
@@ -80,9 +77,7 @@ async def _http_get(
 # ---------------------------------------------------------------------------
 
 
-def test_sign_media_path_rejects_paths_outside_media_root(
-    bus: MagicMock, tmp_path: Path
-) -> None:
+def test_sign_media_path_rejects_paths_outside_media_root(bus: MagicMock, tmp_path: Path) -> None:
     """Paths that resolve outside ``get_media_dir()`` must not be signed.
 
     This is the single most important invariant of the whole scheme:
@@ -102,9 +97,7 @@ def test_sign_media_path_rejects_paths_outside_media_root(
         assert channel._sign_media_path(media / ".." / "secrets" / "cred.txt") is None
 
 
-def test_sign_media_path_round_trips_via_hmac(
-    bus: MagicMock, tmp_path: Path
-) -> None:
+def test_sign_media_path_round_trips_via_hmac(bus: MagicMock, tmp_path: Path) -> None:
     """The signature embeds exactly ``HMAC-SHA256(secret, payload)[:16]``."""
     media = tmp_path / "media"
     media.mkdir()
@@ -114,10 +107,10 @@ def test_sign_media_path_round_trips_via_hmac(
         url = channel._sign_media_path(media / "a.png")
     assert url is not None
     assert url.startswith("/api/media/")
-    sig, payload = url[len("/api/media/"):].split("/", 1)
-    expected = hmac.new(
-        channel._media_secret, payload.encode("ascii"), hashlib.sha256
-    ).digest()[:16]
+    sig, payload = url[len("/api/media/") :].split("/", 1)
+    expected = hmac.new(channel._media_secret, payload.encode("ascii"), hashlib.sha256).digest()[
+        :16
+    ]
     assert _b64url_decode(sig) == expected
     # The payload decodes back to the *relative* path — no absolute-path leaks.
     assert _b64url_decode(payload).decode() == "a.png"
@@ -129,9 +122,7 @@ def test_sign_media_path_round_trips_via_hmac(
 
 
 @pytest.mark.asyncio
-async def test_media_route_serves_signed_file(
-    bus: MagicMock, tmp_path: Path
-) -> None:
+async def test_media_route_serves_signed_file(bus: MagicMock, tmp_path: Path) -> None:
     """Valid signature + existing file => 200 with correct bytes + MIME."""
     media = tmp_path / "media"
     media.mkdir()
@@ -160,9 +151,7 @@ async def test_media_route_serves_signed_file(
 
 
 @pytest.mark.asyncio
-async def test_media_route_rejects_bad_signature(
-    bus: MagicMock, tmp_path: Path
-) -> None:
+async def test_media_route_rejects_bad_signature(bus: MagicMock, tmp_path: Path) -> None:
     """A payload re-signed with a different secret must 401.
 
     Protects against a restart: old URLs baked into a stale tab become
@@ -176,11 +165,9 @@ async def test_media_route_rejects_bad_signature(
     with patch("nanobot.channels.websocket.get_media_dir", return_value=media):
         good = channel._sign_media_path(media / "f.png")
         assert good is not None
-        _, payload = good[len("/api/media/"):].split("/", 1)
+        _, payload = good[len("/api/media/") :].split("/", 1)
         # Forge a sig with a *different* secret.
-        forged_mac = hmac.new(
-            b"\x00" * 32, payload.encode("ascii"), hashlib.sha256
-        ).digest()[:16]
+        forged_mac = hmac.new(b"\x00" * 32, payload.encode("ascii"), hashlib.sha256).digest()[:16]
         forged = f"/api/media/{_b64url_encode(forged_mac)}/{payload}"
 
         server_task = asyncio.create_task(channel.start())
@@ -194,9 +181,7 @@ async def test_media_route_rejects_bad_signature(
 
 
 @pytest.mark.asyncio
-async def test_media_route_rejects_path_traversal_payload(
-    bus: MagicMock, tmp_path: Path
-) -> None:
+async def test_media_route_rejects_path_traversal_payload(bus: MagicMock, tmp_path: Path) -> None:
     """Even a validly-signed ``..`` payload must not escape the media root.
 
     The signer never *emits* such payloads, but an attacker who somehow
@@ -211,9 +196,7 @@ async def test_media_route_rejects_path_traversal_payload(
     channel = _ch(bus, port=29922)
     # Hand-craft a traversal payload the legit signer would refuse to mint.
     payload = _b64url_encode(b"../secret.txt")
-    mac = hmac.new(
-        channel._media_secret, payload.encode("ascii"), hashlib.sha256
-    ).digest()[:16]
+    mac = hmac.new(channel._media_secret, payload.encode("ascii"), hashlib.sha256).digest()[:16]
     url = f"/api/media/{_b64url_encode(mac)}/{payload}"
 
     with patch("nanobot.channels.websocket.get_media_dir", return_value=media):
@@ -229,9 +212,7 @@ async def test_media_route_rejects_path_traversal_payload(
 
 
 @pytest.mark.asyncio
-async def test_media_route_404s_missing_file(
-    bus: MagicMock, tmp_path: Path
-) -> None:
+async def test_media_route_404s_missing_file(bus: MagicMock, tmp_path: Path) -> None:
     """A signed URL for a file that no longer exists degrades to 404 so the
     client can fall back to the placeholder tile instead of breaking."""
     media = tmp_path / "media"
@@ -270,9 +251,7 @@ async def test_media_route_degrades_non_image_to_octet_stream(
     channel = _ch(bus, port=29924)
     with patch("nanobot.channels.websocket.get_media_dir", return_value=media):
         payload = _b64url_encode(b"scary.html")
-        mac = hmac.new(
-            channel._media_secret, payload.encode("ascii"), hashlib.sha256
-        ).digest()[:16]
+        mac = hmac.new(channel._media_secret, payload.encode("ascii"), hashlib.sha256).digest()[:16]
         url = f"/api/media/{_b64url_encode(mac)}/{payload}"
         server_task = asyncio.create_task(channel.start())
         await asyncio.sleep(0.3)
@@ -294,9 +273,7 @@ async def test_media_route_degrades_non_image_to_octet_stream(
 
 
 @pytest.mark.asyncio
-async def test_session_messages_exposes_signed_media_urls(
-    bus: MagicMock, tmp_path: Path
-) -> None:
+async def test_session_messages_exposes_signed_media_urls(bus: MagicMock, tmp_path: Path) -> None:
     """The read path must map persisted ``media`` paths onto signed URLs
     and strip the raw path — the client never learns the server's layout."""
     media = tmp_path / "media"
@@ -342,9 +319,7 @@ async def test_session_messages_exposes_signed_media_urls(
 
 
 @pytest.mark.asyncio
-async def test_session_messages_skips_vanished_media(
-    bus: MagicMock, tmp_path: Path
-) -> None:
+async def test_session_messages_skips_vanished_media(bus: MagicMock, tmp_path: Path) -> None:
     """Paths that no longer resolve inside the media root produce no URL —
     the message is still delivered, just without the preview."""
     media = tmp_path / "media"

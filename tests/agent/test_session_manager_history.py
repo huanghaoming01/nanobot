@@ -5,11 +5,13 @@ def _assert_no_orphans(history: list[dict]) -> None:
     """Assert every tool result in history has a matching assistant tool_call."""
     declared = {
         tc["id"]
-        for m in history if m.get("role") == "assistant"
+        for m in history
+        if m.get("role") == "assistant"
         for tc in (m.get("tool_calls") or [])
     }
     orphans = [
-        m.get("tool_call_id") for m in history
+        m.get("tool_call_id")
+        for m in history
         if m.get("role") == "tool" and m.get("tool_call_id") not in declared
     ]
     assert orphans == [], f"orphan tool_call_ids: {orphans}"
@@ -22,8 +24,16 @@ def _tool_turn(prefix: str, idx: int) -> list[dict]:
             "role": "assistant",
             "content": None,
             "tool_calls": [
-                {"id": f"{prefix}_{idx}_a", "type": "function", "function": {"name": "x", "arguments": "{}"}},
-                {"id": f"{prefix}_{idx}_b", "type": "function", "function": {"name": "y", "arguments": "{}"}},
+                {
+                    "id": f"{prefix}_{idx}_a",
+                    "type": "function",
+                    "function": {"name": "x", "arguments": "{}"},
+                },
+                {
+                    "id": f"{prefix}_{idx}_b",
+                    "type": "function",
+                    "function": {"name": "y", "arguments": "{}"},
+                },
             ],
         },
         {"role": "tool", "tool_call_id": f"{prefix}_{idx}_a", "name": "x", "content": "ok"},
@@ -45,6 +55,7 @@ def test_list_sessions_includes_metadata_title(tmp_path):
 
 # --- Original regression test (from PR 2075) ---
 
+
 def test_get_history_drops_orphan_tool_results_when_window_cuts_tool_calls():
     session = Session(key="telegram:test")
     session.messages.append({"role": "user", "content": "old turn"})
@@ -60,6 +71,7 @@ def test_get_history_drops_orphan_tool_results_when_window_cuts_tool_calls():
 
 
 # --- Positive test: legitimate pairs survive trimming ---
+
 
 def test_legitimate_tool_pairs_preserved_after_trim():
     """Complete tool-call groups within the window must not be dropped."""
@@ -130,6 +142,7 @@ def test_retain_recent_legal_suffix_keeps_legal_tool_boundary():
 
 # --- last_consolidated > 0 ---
 
+
 def test_orphan_trim_with_last_consolidated():
     """Orphan trimming works correctly when session is partially consolidated."""
     session = Session(key="test:consolidated")
@@ -150,6 +163,7 @@ def test_orphan_trim_with_last_consolidated():
 
 # --- Edge: no tool messages at all ---
 
+
 def test_no_tool_messages_unchanged():
     session = Session(key="test:plain")
     for i in range(5):
@@ -163,11 +177,16 @@ def test_no_tool_messages_unchanged():
 
 # --- Edge: all leading messages are orphan tool results ---
 
+
 def test_all_orphan_prefix_stripped():
     """If the window starts with orphan tool results and nothing else, they're all dropped."""
     session = Session(key="test:all-orphan")
-    session.messages.append({"role": "tool", "tool_call_id": "gone_1", "name": "x", "content": "ok"})
-    session.messages.append({"role": "tool", "tool_call_id": "gone_2", "name": "y", "content": "ok"})
+    session.messages.append(
+        {"role": "tool", "tool_call_id": "gone_1", "name": "x", "content": "ok"}
+    )
+    session.messages.append(
+        {"role": "tool", "tool_call_id": "gone_2", "name": "y", "content": "ok"}
+    )
     session.messages.append({"role": "user", "content": "fresh start"})
     session.messages.append({"role": "assistant", "content": "hi"})
 
@@ -179,6 +198,7 @@ def test_all_orphan_prefix_stripped():
 
 # --- Edge: empty session ---
 
+
 def test_empty_session_history():
     session = Session(key="test:empty")
     history = session.get_history(max_messages=500)
@@ -188,12 +208,16 @@ def test_empty_session_history():
 def test_get_history_preserves_reasoning_content():
     session = Session(key="test:reasoning")
     session.messages.append({"role": "user", "content": "hi"})
-    session.messages.append({
-        "role": "assistant",
-        "content": "done",
-        "reasoning_content": "hidden chain of thought",
-        "thinking_blocks": [{"type": "thinking", "thinking": "hidden chain of thought", "signature": "sig"}],
-    })
+    session.messages.append(
+        {
+            "role": "assistant",
+            "content": "done",
+            "reasoning_content": "hidden chain of thought",
+            "thinking_blocks": [
+                {"type": "thinking", "thinking": "hidden chain of thought", "signature": "sig"}
+            ],
+        }
+    )
 
     history = session.get_history(max_messages=500)
 
@@ -203,11 +227,13 @@ def test_get_history_preserves_reasoning_content():
             "role": "assistant",
             "content": "done",
             "reasoning_content": "hidden chain of thought",
-            "thinking_blocks": [{
-                "type": "thinking",
-                "thinking": "hidden chain of thought",
-                "signature": "sig",
-            }],
+            "thinking_blocks": [
+                {
+                    "type": "thinking",
+                    "thinking": "hidden chain of thought",
+                    "signature": "sig",
+                }
+            ],
         },
     ]
 
@@ -220,16 +246,20 @@ def test_get_history_annotates_user_turns_but_not_assistant_turns():
     enough to pin adjacent assistant replies for relative-time reasoning.
     """
     session = Session(key="test:timestamps")
-    session.messages.append({
-        "role": "user",
-        "content": "10 点提醒是昨天发生的",
-        "timestamp": "2026-04-26T22:00:00",
-    })
-    session.messages.append({
-        "role": "assistant",
-        "content": "记下来了",
-        "timestamp": "2026-04-26T22:00:05",
-    })
+    session.messages.append(
+        {
+            "role": "user",
+            "content": "10 点提醒是昨天发生的",
+            "timestamp": "2026-04-26T22:00:00",
+        }
+    )
+    session.messages.append(
+        {
+            "role": "assistant",
+            "content": "记下来了",
+            "timestamp": "2026-04-26T22:00:05",
+        }
+    )
 
     history = session.get_history(max_messages=500, include_timestamps=True)
 
@@ -248,17 +278,21 @@ def test_get_history_annotates_user_turns_but_not_assistant_turns():
 def test_get_history_does_not_annotate_proactive_assistant_deliveries_with_timestamps():
     """Assistant-side timestamp examples can leak back into future replies."""
     session = Session(key="test:proactive-timestamps")
-    session.messages.append({
-        "role": "assistant",
-        "content": "记得喝水",
-        "timestamp": "2026-04-26T15:00:00",
-        "_channel_delivery": True,
-    })
-    session.messages.append({
-        "role": "user",
-        "content": "好",
-        "timestamp": "2026-04-26T18:00:00",
-    })
+    session.messages.append(
+        {
+            "role": "assistant",
+            "content": "记得喝水",
+            "timestamp": "2026-04-26T15:00:00",
+            "_channel_delivery": True,
+        }
+    )
+    session.messages.append(
+        {
+            "role": "user",
+            "content": "好",
+            "timestamp": "2026-04-26T18:00:00",
+        }
+    )
 
     history = session.get_history(max_messages=500, include_timestamps=True)
 
@@ -289,19 +323,27 @@ def test_get_history_does_not_annotate_tool_results_with_timestamps():
 
 # --- Window cuts mid-group: assistant present but some tool results orphaned ---
 
+
 def test_window_cuts_mid_tool_group():
     """If the window starts between an assistant's tool results, the partial group is trimmed."""
     session = Session(key="test:mid-cut")
     session.messages.append({"role": "user", "content": "setup"})
-    session.messages.append({
-        "role": "assistant", "content": None,
-        "tool_calls": [
-            {"id": "split_a", "type": "function", "function": {"name": "x", "arguments": "{}"}},
-            {"id": "split_b", "type": "function", "function": {"name": "y", "arguments": "{}"}},
-        ],
-    })
-    session.messages.append({"role": "tool", "tool_call_id": "split_a", "name": "x", "content": "ok"})
-    session.messages.append({"role": "tool", "tool_call_id": "split_b", "name": "y", "content": "ok"})
+    session.messages.append(
+        {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [
+                {"id": "split_a", "type": "function", "function": {"name": "x", "arguments": "{}"}},
+                {"id": "split_b", "type": "function", "function": {"name": "y", "arguments": "{}"}},
+            ],
+        }
+    )
+    session.messages.append(
+        {"role": "tool", "tool_call_id": "split_a", "name": "x", "content": "ok"}
+    )
+    session.messages.append(
+        {"role": "tool", "tool_call_id": "split_b", "name": "y", "content": "ok"}
+    )
     session.messages.append({"role": "user", "content": "next"})
     session.messages.extend(_tool_turn("intact", 0))
     session.messages.append({"role": "assistant", "content": "final"})
@@ -320,9 +362,7 @@ def test_get_history_synthesizes_image_breadcrumb_from_media_kwarg():
     replay must still see an ``[image: path]`` breadcrumb so the assistant's
     follow-up reply has a referent instead of trailing an empty user row."""
     session = Session(key="test:media")
-    session.messages.append(
-        {"role": "user", "content": "look", "media": ["/m/a.png", "/m/b.png"]}
-    )
+    session.messages.append({"role": "user", "content": "look", "media": ["/m/a.png", "/m/b.png"]})
     session.messages.append({"role": "assistant", "content": "nice"})
 
     history = session.get_history(max_messages=500)
@@ -388,8 +428,8 @@ def test_get_history_sanitizes_existing_assistant_replay_artifacts():
                 "[Message Time: 2026-05-09 00:33:48]\n"
                 "来了 🎨\n"
                 "[image: /home/user/.nanobot/media/generated/img_old.png]\n\n"
-                "generate_image(\"16:9\")\n"
-                "message(\"来了 🎨\")"
+                'generate_image("16:9")\n'
+                'message("来了 🎨")'
             ),
         }
     )

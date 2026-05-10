@@ -1,4 +1,4 @@
-"""Spawn tool for creating background subagents."""
+"""用于创建后台子 agent 的 spawn 工具。"""
 
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     )
 )
 class SpawnTool(Tool):
-    """Tool to spawn a subagent for background task execution."""
+    """用于创建后台任务子 agent 的工具。"""
 
     def __init__(self, manager: "SubagentManager"):
         self._manager = manager
@@ -31,13 +31,13 @@ class SpawnTool(Tool):
         )
 
     def set_context(self, channel: str, chat_id: str, effective_key: str | None = None) -> None:
-        """Set the origin context for subagent announcements."""
+        """设置子 agent 通知的来源上下文。"""
         self._origin_channel.set(channel)
         self._origin_chat_id.set(chat_id)
         self._session_key.set(effective_key or f"{channel}:{chat_id}")
 
     def set_origin_message_id(self, message_id: str | None) -> None:
-        """Set the source message id for downstream deduplication."""
+        """设置源消息 ID，用于下游去重。"""
         self._origin_message_id.set(message_id)
 
     @property
@@ -55,7 +55,7 @@ class SpawnTool(Tool):
         )
 
     async def execute(self, task: str, label: str | None = None, **kwargs: Any) -> str:
-        """Spawn a subagent to execute the given task."""
+        """创建子 agent 来执行给定任务。"""
         running = self._manager.get_running_count()
         limit = self._manager.max_concurrent_subagents
         if running >= limit:

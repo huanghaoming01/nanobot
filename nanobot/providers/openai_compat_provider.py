@@ -41,10 +41,17 @@ from nanobot.providers.openai_responses import (
 if TYPE_CHECKING:
     from nanobot.providers.registry import ProviderSpec
 
-_ALLOWED_MSG_KEYS = frozenset({
-    "role", "content", "tool_calls", "tool_call_id", "name",
-    "reasoning_content", "extra_content",
-})
+_ALLOWED_MSG_KEYS = frozenset(
+    {
+        "role",
+        "content",
+        "tool_calls",
+        "tool_call_id",
+        "name",
+        "reasoning_content",
+        "extra_content",
+    }
+)
 _ALNUM = string.ascii_letters + string.digits
 
 _STANDARD_TC_KEYS = frozenset({"id", "type", "index", "function"})
@@ -54,11 +61,13 @@ _DEFAULT_OPENROUTER_HEADERS = {
     "X-OpenRouter-Title": "nanobot",
     "X-OpenRouter-Categories": "cli-agent,personal-agent",
 }
-_KIMI_THINKING_MODELS: frozenset[str] = frozenset({
-    "kimi-k2.5",
-    "kimi-k2.6",
-    "k2.6-code-preview",
-})
+_KIMI_THINKING_MODELS: frozenset[str] = frozenset(
+    {
+        "kimi-k2.5",
+        "kimi-k2.6",
+        "k2.6-code-preview",
+    }
+)
 _OPENAI_COMPAT_REQUEST_TIMEOUT_S = 120.0
 
 # Maps ProviderSpec.thinking_style → extra_body builder.
@@ -136,7 +145,9 @@ def _coerce_dict(value: Any) -> dict[str, Any] | None:
     return None
 
 
-def _extract_tc_extras(tc: Any) -> tuple[
+def _extract_tc_extras(
+    tc: Any,
+) -> tuple[
     dict[str, Any] | None,
     dict[str, Any] | None,
     dict[str, Any] | None,
@@ -152,14 +163,18 @@ def _extract_tc_extras(tc: Any) -> tuple[
     prov = None
     fn_prov = None
     if tc_dict is not None:
-        leftover = {k: v for k, v in tc_dict.items()
-                    if k not in _STANDARD_TC_KEYS and k != "extra_content" and v is not None}
+        leftover = {
+            k: v
+            for k, v in tc_dict.items()
+            if k not in _STANDARD_TC_KEYS and k != "extra_content" and v is not None
+        }
         if leftover:
             prov = leftover
         fn = _coerce_dict(tc_dict.get("function"))
         if fn is not None:
-            fn_leftover = {k: v for k, v in fn.items()
-                          if k not in _STANDARD_FN_KEYS and v is not None}
+            fn_leftover = {
+                k: v for k, v in fn.items() if k not in _STANDARD_FN_KEYS and v is not None
+            }
             if fn_leftover:
                 fn_prov = fn_leftover
     else:
@@ -239,11 +254,7 @@ def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any
     """
     merged = dict(base)
     for key, value in override.items():
-        if (
-            key in merged
-            and isinstance(merged[key], dict)
-            and isinstance(value, dict)
-        ):
+        if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
             merged[key] = _deep_merge(merged[key], value)
         else:
             merged[key] = value
@@ -341,9 +352,12 @@ class OpenAICompatProvider(LLMProvider):
         def _mark(msg: dict[str, Any]) -> dict[str, Any]:
             content = msg.get("content")
             if isinstance(content, str):
-                return {**msg, "content": [
-                    {"type": "text", "text": content, "cache_control": cache_marker},
-                ]}
+                return {
+                    **msg,
+                    "content": [
+                        {"type": "text", "text": content, "cache_control": cache_marker},
+                    ],
+                }
             if isinstance(content, list) and content:
                 nc = list(content)
                 nc[-1] = {**nc[-1], "cache_control": cache_marker}
@@ -441,9 +455,8 @@ class OpenAICompatProvider(LLMProvider):
                     clean["content"] = None
             if "tool_call_id" in clean and clean["tool_call_id"]:
                 clean["tool_call_id"] = map_id(clean["tool_call_id"])
-            if (
-                force_string_content
-                and not (clean.get("role") == "assistant" and clean.get("tool_calls"))
+            if force_string_content and not (
+                clean.get("role") == "assistant" and clean.get("tool_calls")
             ):
                 clean["content"] = self._coerce_content_to_string(clean.get("content"))
         return self._enforce_role_alternation(sanitized)
@@ -641,9 +654,7 @@ class OpenAICompatProvider(LLMProvider):
             return False
 
         body = (
-            getattr(e, "body", None)
-            or getattr(e, "doc", None)
-            or getattr(response, "text", None)
+            getattr(e, "body", None) or getattr(e, "doc", None) or getattr(response, "text", None)
         )
         body_text = str(body).lower() if body is not None else ""
         compatibility_markers = (
@@ -774,8 +785,8 @@ class OpenAICompatProvider(LLMProvider):
         # Priority order ensures the most specific field wins.
         for path in (
             ("prompt_tokens_details", "cached_tokens"),  # OpenAI/Zhipu/MiniMax/Qwen/Mistral/xAI
-            ("cached_tokens",),                          # StepFun/Moonshot (top-level)
-            ("prompt_cache_hit_tokens",),                # DeepSeek/SiliconFlow
+            ("cached_tokens",),  # StepFun/Moonshot (top-level)
+            ("prompt_cache_hit_tokens",),  # DeepSeek/SiliconFlow
         ):
             cached = cls._get_nested_int(usage_map, path)
             if not cached and usage_obj:
@@ -824,7 +835,9 @@ class OpenAICompatProvider(LLMProvider):
                         finish_reason=str(response_map.get("finish_reason") or "stop"),
                         usage=self._extract_usage(response_map),
                     )
-                return LLMResponse(content="Error: API returned empty choices.", finish_reason="error")
+                return LLMResponse(
+                    content="Error: API returned empty choices.", finish_reason="error"
+                )
 
             choice0 = self._maybe_mapping(choices[0]) or {}
             msg0 = self._maybe_mapping(choice0.get("message")) or {}
@@ -833,7 +846,12 @@ class OpenAICompatProvider(LLMProvider):
 
             raw_tool_calls: list[Any] = []
             # StepFun: fallback to reasoning field when content is empty
-            if not content and msg0.get("reasoning") and self._spec and self._spec.reasoning_as_content:
+            if (
+                not content
+                and msg0.get("reasoning")
+                and self._spec
+                and self._spec.reasoning_as_content
+            ):
                 content = self._extract_text_content(msg0.get("reasoning"))
             reasoning_content = msg0.get("reasoning_content")
             if not reasoning_content and msg0.get("reasoning"):
@@ -859,14 +877,16 @@ class OpenAICompatProvider(LLMProvider):
                 if isinstance(args, str):
                     args = json_repair.loads(args)
                 ec, prov, fn_prov = _extract_tc_extras(tc)
-                parsed_tool_calls.append(ToolCallRequest(
-                    id=_short_tool_id(),
-                    name=str(fn.get("name") or ""),
-                    arguments=args if isinstance(args, dict) else {},
-                    extra_content=ec,
-                    provider_specific_fields=prov,
-                    function_provider_specific_fields=fn_prov,
-                ))
+                parsed_tool_calls.append(
+                    ToolCallRequest(
+                        id=_short_tool_id(),
+                        name=str(fn.get("name") or ""),
+                        arguments=args if isinstance(args, dict) else {},
+                        extra_content=ec,
+                        provider_specific_fields=prov,
+                        function_provider_specific_fields=fn_prov,
+                    )
+                )
 
             return LLMResponse(
                 content=content,
@@ -893,7 +913,12 @@ class OpenAICompatProvider(LLMProvider):
                     finish_reason = ch.finish_reason
             if not content and m.content:
                 content = m.content
-            if not content and getattr(m, "reasoning", None) and self._spec and self._spec.reasoning_as_content:
+            if (
+                not content
+                and getattr(m, "reasoning", None)
+                and self._spec
+                and self._spec.reasoning_as_content
+            ):
                 content = m.reasoning
 
         tool_calls = []
@@ -902,14 +927,16 @@ class OpenAICompatProvider(LLMProvider):
             if isinstance(args, str):
                 args = json_repair.loads(args)
             ec, prov, fn_prov = _extract_tc_extras(tc)
-            tool_calls.append(ToolCallRequest(
-                id=_short_tool_id(),
-                name=tc.function.name,
-                arguments=args,
-                extra_content=ec,
-                provider_specific_fields=prov,
-                function_provider_specific_fields=fn_prov,
-            ))
+            tool_calls.append(
+                ToolCallRequest(
+                    id=_short_tool_id(),
+                    name=tc.function.name,
+                    arguments=args,
+                    extra_content=ec,
+                    provider_specific_fields=prov,
+                    function_provider_specific_fields=fn_prov,
+                )
+            )
 
         reasoning_content = getattr(msg, "reasoning_content", None) or None
         if not reasoning_content and getattr(msg, "reasoning", None):
@@ -934,10 +961,17 @@ class OpenAICompatProvider(LLMProvider):
         def _accum_tc(tc: Any, idx_hint: int) -> None:
             """Accumulate one streaming tool-call delta into *tc_bufs*."""
             tc_index: int = _get(tc, "index") if _get(tc, "index") is not None else idx_hint
-            buf = tc_bufs.setdefault(tc_index, {
-                "id": "", "name": "", "arguments": "",
-                "extra_content": None, "prov": None, "fn_prov": None,
-            })
+            buf = tc_bufs.setdefault(
+                tc_index,
+                {
+                    "id": "",
+                    "name": "",
+                    "arguments": "",
+                    "extra_content": None,
+                    "prov": None,
+                    "fn_prov": None,
+                },
+            )
             tc_id = _get(tc, "id")
             if tc_id:
                 buf["id"] = str(tc_id)
@@ -1031,9 +1065,7 @@ class OpenAICompatProvider(LLMProvider):
         response = getattr(e, "response", None)
         headers = getattr(response, "headers", None)
         payload = (
-            getattr(e, "body", None)
-            or getattr(e, "doc", None)
-            or getattr(response, "text", None)
+            getattr(e, "body", None) or getattr(e, "doc", None) or getattr(response, "text", None)
         )
         if payload is None and response is not None:
             response_json = getattr(response, "json", None)
@@ -1087,7 +1119,9 @@ class OpenAICompatProvider(LLMProvider):
             or getattr(getattr(e, "response", None), "text", None)
         )
         body_text = body if isinstance(body, str) else str(body) if body is not None else ""
-        msg = f"Error: {body_text.strip()[:500]}" if body_text.strip() else f"Error calling LLM: {e}"
+        msg = (
+            f"Error: {body_text.strip()[:500]}" if body_text.strip() else f"Error calling LLM: {e}"
+        )
 
         text = f"{body_text} {e}".lower()
         if spec and spec.is_local and ("502" in text or "connection" in text or "refused" in text):
@@ -1098,7 +1132,9 @@ class OpenAICompatProvider(LLMProvider):
             )
 
         response = getattr(e, "response", None)
-        retry_after = LLMProvider._extract_retry_after_from_headers(getattr(response, "headers", None))
+        retry_after = LLMProvider._extract_retry_after_from_headers(
+            getattr(response, "headers", None)
+        )
         if retry_after is None:
             retry_after = LLMProvider._extract_retry_after(msg)
         return LLMResponse(
@@ -1126,8 +1162,13 @@ class OpenAICompatProvider(LLMProvider):
             if self._should_use_responses_api(model, reasoning_effort):
                 try:
                     body = self._build_responses_body(
-                        messages, tools, model, max_tokens, temperature,
-                        reasoning_effort, tool_choice,
+                        messages,
+                        tools,
+                        model,
+                        max_tokens,
+                        temperature,
+                        reasoning_effort,
+                        tool_choice,
                     )
                     result = parse_response_output(await self._client.responses.create(**body))
                     self._record_responses_success(model, reasoning_effort)
@@ -1143,8 +1184,13 @@ class OpenAICompatProvider(LLMProvider):
                     self._record_responses_failure(model, reasoning_effort)
 
             kwargs = self._build_kwargs(
-                messages, tools, model, max_tokens, temperature,
-                reasoning_effort, tool_choice,
+                messages,
+                tools,
+                model,
+                max_tokens,
+                temperature,
+                reasoning_effort,
+                tool_choice,
             )
             return self._parse(await self._client.chat.completions.create(**kwargs))
         except Exception as e:
@@ -1166,8 +1212,13 @@ class OpenAICompatProvider(LLMProvider):
             if self._should_use_responses_api(model, reasoning_effort):
                 try:
                     body = self._build_responses_body(
-                        messages, tools, model, max_tokens, temperature,
-                        reasoning_effort, tool_choice,
+                        messages,
+                        tools,
+                        model,
+                        max_tokens,
+                        temperature,
+                        reasoning_effort,
+                        tool_choice,
                     )
                     body["stream"] = True
                     stream = await self._client.responses.create(**body)
@@ -1183,7 +1234,13 @@ class OpenAICompatProvider(LLMProvider):
                             except StopAsyncIteration:
                                 break
 
-                    content, tool_calls, finish_reason, usage, reasoning_content = await consume_sdk_stream(
+                    (
+                        content,
+                        tool_calls,
+                        finish_reason,
+                        usage,
+                        reasoning_content,
+                    ) = await consume_sdk_stream(
                         _timed_stream(),
                         on_content_delta,
                     )
@@ -1206,8 +1263,13 @@ class OpenAICompatProvider(LLMProvider):
                     self._record_responses_failure(model, reasoning_effort)
 
             kwargs = self._build_kwargs(
-                messages, tools, model, max_tokens, temperature,
-                reasoning_effort, tool_choice,
+                messages,
+                tools,
+                model,
+                max_tokens,
+                temperature,
+                reasoning_effort,
+                tool_choice,
             )
             kwargs["stream"] = True
             kwargs["stream_options"] = {"include_usage": True}
@@ -1231,8 +1293,7 @@ class OpenAICompatProvider(LLMProvider):
         except asyncio.TimeoutError:
             return LLMResponse(
                 content=(
-                    f"Error calling LLM: stream stalled for more than "
-                    f"{idle_timeout_s} seconds"
+                    f"Error calling LLM: stream stalled for more than {idle_timeout_s} seconds"
                 ),
                 finish_reason="error",
                 error_kind="timeout",

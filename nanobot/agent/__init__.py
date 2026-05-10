@@ -1,4 +1,4 @@
-"""Agent core module."""
+"""Agent 核心模块。"""
 
 from nanobot.agent.context import ContextBuilder
 from nanobot.agent.hook import AgentHook, AgentHookContext, CompositeHook

@@ -125,7 +125,9 @@ if DISCORD_AVAILABLE:
                 try:
                     channel = await self.fetch_channel(channel_id)
                 except Exception as e:
-                    self._channel.logger.warning("interaction channel {} unavailable: {}", channel_id, e)
+                    self._channel.logger.warning(
+                        "interaction channel {} unavailable: {}", channel_id, e
+                    )
                     return None
             self._channel._remember_channel(channel)
             return channel
@@ -162,7 +164,9 @@ if DISCORD_AVAILABLE:
 
             channel = await self._resolve_interaction_channel(interaction)
             if not await self._interaction_channel_allowed(interaction, channel):
-                await self._reply_ephemeral(interaction, "This channel is not allowed for this bot.")
+                await self._reply_ephemeral(
+                    interaction, "This channel is not allowed for this bot."
+                )
                 return
 
             await self._reply_ephemeral(interaction, f"Processing {command_text}...")
@@ -215,7 +219,9 @@ if DISCORD_AVAILABLE:
                     return
                 channel = await self._resolve_interaction_channel(interaction)
                 if not await self._interaction_channel_allowed(interaction, channel):
-                    await self._reply_ephemeral(interaction, "This channel is not allowed for this bot.")
+                    await self._reply_ephemeral(
+                        interaction, "This channel is not allowed for this bot."
+                    )
                     return
                 await self._reply_ephemeral(interaction, build_help_text())
 

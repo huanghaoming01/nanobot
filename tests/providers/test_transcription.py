@@ -158,8 +158,9 @@ async def test_returns_empty_when_file_unreadable(audio_file: Path) -> None:
     """Existing file that cannot be read (PermissionError/OSError): "" with no HTTP attempt."""
     provider = OpenAITranscriptionProvider(api_key="sk-test")
     post = AsyncMock()
-    with patch("pathlib.Path.read_bytes", side_effect=PermissionError("denied")), patch(
-        "httpx.AsyncClient.post", post
+    with (
+        patch("pathlib.Path.read_bytes", side_effect=PermissionError("denied")),
+        patch("httpx.AsyncClient.post", post),
     ):
         result = await provider.transcribe(audio_file)
     assert result == ""
@@ -197,9 +198,7 @@ async def test_provider_forwards_language_in_multipart(
     ids=["openai", "groq"],
 )
 @pytest.mark.asyncio
-async def test_provider_omits_language_when_unset(
-    audio_file: Path, provider_cls: type
-) -> None:
+async def test_provider_omits_language_when_unset(audio_file: Path, provider_cls: type) -> None:
     """When ``language`` is None, no ``language`` field is sent."""
     provider = provider_cls(api_key="k")
     post = AsyncMock(return_value=_response(200, {"text": "ok"}))
@@ -258,9 +257,7 @@ async def test_returns_empty_on_non_dict_json_body(audio_file: Path) -> None:
 
 @pytest.mark.parametrize("status", [408, 429, 500, 502, 503, 504])
 @pytest.mark.asyncio
-async def test_retries_on_every_advertised_transient_status(
-    audio_file: Path, status: int
-) -> None:
+async def test_retries_on_every_advertised_transient_status(audio_file: Path, status: int) -> None:
     provider = OpenAITranscriptionProvider(api_key="sk-test")
     post = AsyncMock(side_effect=[_response(status), _response(200, {"text": "ok"})])
     with patch("httpx.AsyncClient.post", post), patch("asyncio.sleep", AsyncMock()):

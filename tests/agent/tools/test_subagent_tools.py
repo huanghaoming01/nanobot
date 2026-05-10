@@ -311,14 +311,16 @@ async def test_drain_pending_blocks_while_subagents_running(tmp_path):
     assert not drain_task.done(), "drain should block while sub-agents are running"
 
     # Now put a message in the queue (simulating sub-agent completion)
-    await pending_queue.put(InboundMessage(
-        sender_id="subagent",
-        channel="test",
-        chat_id="c1",
-        content="Sub-agent result",
-        media=None,
-        metadata={},
-    ))
+    await pending_queue.put(
+        InboundMessage(
+            sender_id="subagent",
+            channel="test",
+            chat_id="c1",
+            content="Sub-agent result",
+            media=None,
+            metadata={},
+        )
+    )
 
     # Should unblock and return results
     results = await asyncio.wait_for(drain_task, timeout=2.0)

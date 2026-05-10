@@ -73,6 +73,7 @@ def _build_client_version(version: str) -> int:
     patch = _as_int(2)
     return ((major & 0xFF) << 16) | ((minor & 0xFF) << 8) | (patch & 0xFF)
 
+
 ILINK_APP_CLIENT_VERSION = _build_client_version(WEIXIN_CHANNEL_VERSION)
 BASE_INFO: dict[str, str] = {"channel_version": WEIXIN_CHANNEL_VERSION}
 
@@ -110,7 +111,10 @@ _VOICE_EXTS = {".mp3", ".wav", ".amr", ".silk", ".ogg", ".m4a", ".aac", ".flac"}
 def _has_downloadable_media_locator(media: dict[str, Any] | None) -> bool:
     if not isinstance(media, dict):
         return False
-    return bool(str(media.get("encrypt_query_param", "") or "") or str(media.get("full_url", "") or "").strip())
+    return bool(
+        str(media.get("encrypt_query_param", "") or "")
+        or str(media.get("full_url", "") or "").strip()
+    )
 
 
 class WeixinConfig(Base):
@@ -379,7 +383,9 @@ class WeixinChannel(BaseChannel):
                 elif status == "scaned_but_redirect":
                     redirect_host = str(status_data.get("redirect_host", "") or "").strip()
                     if redirect_host:
-                        if redirect_host.startswith("http://") or redirect_host.startswith("https://"):
+                        if redirect_host.startswith("http://") or redirect_host.startswith(
+                            "https://"
+                        ):
                             redirected_base = redirect_host
                         else:
                             redirected_base = f"https://{redirect_host}"
@@ -470,7 +476,9 @@ class WeixinChannel(BaseChannel):
             self._token = self.config.token
         elif not self._load_state():
             if not await self._qr_login():
-                self.logger.error("login failed. Run 'nanobot channels login weixin' to authenticate.")
+                self.logger.error(
+                    "login failed. Run 'nanobot channels login weixin' to authenticate."
+                )
                 self._running = False
                 return
 
@@ -504,6 +512,7 @@ class WeixinChannel(BaseChannel):
             await self._client.aclose()
             self._client = None
         self._save_state()
+
     # ------------------------------------------------------------------
     # Polling  (matches monitor.ts monitorWeixinProvider)
     # ------------------------------------------------------------------
@@ -901,7 +910,11 @@ class WeixinChannel(BaseChannel):
             }
             return ticket
 
-        prev_delay = float(entry.get("retry_delay_s", CONFIG_CACHE_INITIAL_RETRY_S)) if entry else CONFIG_CACHE_INITIAL_RETRY_S
+        prev_delay = (
+            float(entry.get("retry_delay_s", CONFIG_CACHE_INITIAL_RETRY_S))
+            if entry
+            else CONFIG_CACHE_INITIAL_RETRY_S
+        )
         next_delay = min(prev_delay * 2, CONFIG_CACHE_MAX_RETRY_S)
         if entry:
             entry["next_fetch_at"] = now + next_delay
@@ -928,7 +941,9 @@ class WeixinChannel(BaseChannel):
         }
         await self._api_post("ilink/bot/sendtyping", body)
 
-    async def _typing_keepalive_loop(self, user_id: str, typing_ticket: str, stop_event: asyncio.Event) -> None:
+    async def _typing_keepalive_loop(
+        self, user_id: str, typing_ticket: str, stop_event: asyncio.Event
+    ) -> None:
         try:
             while not stop_event.is_set():
                 await asyncio.sleep(TYPING_KEEPALIVE_INTERVAL_S)
@@ -972,7 +987,7 @@ class WeixinChannel(BaseChannel):
 
         try:
             # --- Send media files first (following Telegram channel pattern) ---
-            for media_path in (msg.media or []):
+            for media_path in msg.media or []:
                 try:
                     await self._send_media_file(msg.chat_id, media_path, ctx_token)
                 except (httpx.TimeoutException, httpx.TransportError):
@@ -986,9 +1001,7 @@ class WeixinChannel(BaseChannel):
                     raise
                 except httpx.HTTPStatusError as http_err:
                     status_code = (
-                        http_err.response.status_code
-                        if http_err.response is not None
-                        else 0
+                        http_err.response.status_code if http_err.response is not None else 0
                     )
                     if status_code >= 500:
                         # Server-side / retryable HTTP error — same as network.
@@ -1005,7 +1018,9 @@ class WeixinChannel(BaseChannel):
                     filename = Path(media_path).name
                     self.logger.exception("Failed to send media {}", media_path)
                     await self._send_text(
-                        msg.chat_id, f"[Failed to send: {filename}]", ctx_token,
+                        msg.chat_id,
+                        f"[Failed to send: {filename}]",
+                        ctx_token,
                     )
                 except Exception:
                     # Non-network errors (format, file-not-found, etc.):
@@ -1014,7 +1029,9 @@ class WeixinChannel(BaseChannel):
                     self.logger.exception("Failed to send media {}", media_path)
                     # Notify user about failure via text
                     await self._send_text(
-                        msg.chat_id, f"[Failed to send: {filename}]", ctx_token,
+                        msg.chat_id,
+                        f"[Failed to send: {filename}]",
+                        ctx_token,
                     )
 
             # --- Send text content ---
@@ -1123,9 +1140,7 @@ class WeixinChannel(BaseChannel):
         data = await self._api_post("ilink/bot/sendmessage", body)
         errcode = data.get("errcode", 0)
         if errcode and errcode != 0:
-            raise RuntimeError(
-                f"WeChat send text error (code {errcode}): {data.get('errmsg', '')}"
-            )
+            raise RuntimeError(f"WeChat send text error (code {errcode}): {data.get('errmsg', '')}")
 
     async def _send_media_file(
         self,

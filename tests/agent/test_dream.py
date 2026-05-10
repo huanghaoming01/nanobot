@@ -1,10 +1,9 @@
 """Tests for the Dream class — two-phase memory consolidation via AgentRunner."""
 
 import json
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from nanobot.agent.memory import Dream, MemoryStore
 from nanobot.agent.runner import AgentRunResult
@@ -64,13 +63,17 @@ class TestDreamRun:
         mock_provider.chat_with_retry.assert_not_called()
         mock_runner.run.assert_not_called()
 
-    async def test_calls_runner_for_unprocessed_entries(self, dream, mock_provider, mock_runner, store):
+    async def test_calls_runner_for_unprocessed_entries(
+        self, dream, mock_provider, mock_runner, store
+    ):
         """Dream should call AgentRunner when there are unprocessed history entries."""
         store.append_history("User prefers dark mode")
         mock_provider.chat_with_retry.return_value = MagicMock(content="New fact")
-        mock_runner.run = AsyncMock(return_value=_make_run_result(
-            tool_events=[{"name": "edit_file", "status": "ok", "detail": "memory/MEMORY.md"}],
-        ))
+        mock_runner.run = AsyncMock(
+            return_value=_make_run_result(
+                tool_events=[{"name": "edit_file", "status": "ok", "detail": "memory/MEMORY.md"}],
+            )
+        )
         result = await dream.run()
         assert result is True
         mock_runner.run.assert_called_once()
@@ -99,11 +102,15 @@ class TestDreamRun:
         entries = store.read_unprocessed_history(since_cursor=0)
         assert all(e["cursor"] > 0 for e in entries)
 
-    async def test_skill_phase_uses_builtin_skill_creator_path(self, dream, mock_provider, mock_runner, store):
+    async def test_skill_phase_uses_builtin_skill_creator_path(
+        self, dream, mock_provider, mock_runner, store
+    ):
         """Dream should point skill creation guidance at the builtin skill-creator template."""
         store.append_history("Repeated workflow one")
         store.append_history("Repeated workflow two")
-        mock_provider.chat_with_retry.return_value = MagicMock(content="[SKILL] test-skill: test description")
+        mock_provider.chat_with_retry.return_value = MagicMock(
+            content="[SKILL] test-skill: test description"
+        )
         mock_runner.run = AsyncMock(return_value=_make_run_result())
 
         await dream.run()
@@ -126,7 +133,9 @@ class TestDreamRun:
         assert "Successfully wrote" in result
         assert (store.workspace / "skills" / "test-skill" / "SKILL.md").exists()
 
-    async def test_phase1_prompt_includes_line_age_annotations(self, dream, mock_provider, mock_runner, store):
+    async def test_phase1_prompt_includes_line_age_annotations(
+        self, dream, mock_provider, mock_runner, store
+    ):
         """Phase 1 prompt should have per-line age suffixes in MEMORY.md when git is available."""
         store.append_history("some event")
         mock_provider.chat_with_retry.return_value = MagicMock(content="[SKIP]")
@@ -143,7 +152,9 @@ class TestDreamRun:
         user_msg = call_args.kwargs.get("messages", call_args[1].get("messages"))[1]["content"]
         assert "## Current MEMORY.md" in user_msg
 
-    async def test_phase1_annotates_only_memory_not_soul_or_user(self, dream, mock_provider, mock_runner, store):
+    async def test_phase1_annotates_only_memory_not_soul_or_user(
+        self, dream, mock_provider, mock_runner, store
+    ):
         """SOUL.md and USER.md should never have age annotations — they are permanent."""
         store.append_history("some event")
         mock_provider.chat_with_retry.return_value = MagicMock(content="[SKIP]")
@@ -179,7 +190,11 @@ class TestDreamRun:
         assert "## Current MEMORY.md" in user_msg
 
     async def test_phase1_prompt_carries_age_suffix_for_stale_lines(
-        self, dream, mock_provider, mock_runner, store,
+        self,
+        dream,
+        mock_provider,
+        mock_runner,
+        store,
     ):
         """End-to-end: ages >14d must appear verbatim in the LLM prompt, ages ≤14d must not."""
         # MEMORY.md fixture has 2 non-blank lines ("# Memory" and "- Project X active").
@@ -190,10 +205,10 @@ class TestDreamRun:
         mock_runner.run = AsyncMock(return_value=_make_run_result())
 
         fake_ages = [
-            LineAge(age_days=30),   # "# Memory"        → should get ← 30d
-            LineAge(age_days=20),   # "- Project X..."  → should get ← 20d
-            LineAge(age_days=14),   # "- fresh item"    → ==14, threshold is strictly >14, no suffix
-            LineAge(age_days=5),    # "- edge case..."  → no suffix
+            LineAge(age_days=30),  # "# Memory"        → should get ← 30d
+            LineAge(age_days=20),  # "- Project X..."  → should get ← 20d
+            LineAge(age_days=14),  # "- fresh item"    → ==14, threshold is strictly >14, no suffix
+            LineAge(age_days=5),  # "- edge case..."  → no suffix
         ]
         with patch.object(store.git, "line_ages", return_value=fake_ages):
             await dream.run()
@@ -207,7 +222,11 @@ class TestDreamRun:
         assert "\u2190 5d" not in memory_section
 
     async def test_phase1_skips_annotation_when_disabled(
-        self, dream, mock_provider, mock_runner, store,
+        self,
+        dream,
+        mock_provider,
+        mock_runner,
+        store,
     ):
         """`annotate_line_ages=False` must bypass the git lookup entirely and keep MEMORY.md raw."""
         store.append_history("some event")
@@ -227,7 +246,11 @@ class TestDreamRun:
         assert "\u2190" not in user_msg
 
     async def test_phase1_skips_annotation_on_line_ages_length_mismatch(
-        self, dream, mock_provider, mock_runner, store,
+        self,
+        dream,
+        mock_provider,
+        mock_runner,
+        store,
     ):
         """If ages length != lines length (dirty working tree), skip annotation instead of mis-tagging."""
         # MEMORY.md has 2 non-blank lines but we hand back only 1 age → mismatch.
@@ -245,7 +268,11 @@ class TestDreamRun:
         assert "\u2190" not in memory_section
 
     async def test_phase1_prompt_uses_threshold_from_template_var(
-        self, dream, mock_provider, mock_runner, store,
+        self,
+        dream,
+        mock_provider,
+        mock_runner,
+        store,
     ):
         """System prompt should reference the stale-threshold constant, not a hardcoded 14."""
         store.append_history("some event")
@@ -267,7 +294,11 @@ class TestDreamPromptCaps:
     """
 
     async def test_phase1_caps_huge_memory_file(
-        self, dream, mock_provider, mock_runner, store,
+        self,
+        dream,
+        mock_provider,
+        mock_runner,
+        store,
     ):
         """A MEMORY.md much larger than _MEMORY_FILE_MAX_CHARS must be truncated
         in the prompt preview (full content is still reachable via read_file)."""
@@ -283,7 +314,11 @@ class TestDreamPromptCaps:
         assert len(memory_section) < dream._MEMORY_FILE_MAX_CHARS + 500
 
     async def test_phase1_caps_huge_history_entry(
-        self, dream, mock_provider, mock_runner, store,
+        self,
+        dream,
+        mock_provider,
+        mock_runner,
+        store,
     ):
         """A legacy oversized history entry (e.g. pre-#3412 raw_archive dump)
         must not explode the Phase 1 prompt — each entry is capped in the
@@ -291,11 +326,14 @@ class TestDreamPromptCaps:
         # Bypass the append_history cap by writing directly, simulating a
         # record that was written by an older nanobot build before any caps.
         store.history_file.write_text(
-            json.dumps({
-                "cursor": 1,
-                "timestamp": "2026-04-01 10:00",
-                "content": "H" * (dream._HISTORY_ENTRY_PREVIEW_MAX_CHARS * 8),
-            }) + "\n",
+            json.dumps(
+                {
+                    "cursor": 1,
+                    "timestamp": "2026-04-01 10:00",
+                    "content": "H" * (dream._HISTORY_ENTRY_PREVIEW_MAX_CHARS * 8),
+                }
+            )
+            + "\n",
             encoding="utf-8",
         )
         mock_provider.chat_with_retry.return_value = MagicMock(content="[SKIP]")
@@ -304,6 +342,7 @@ class TestDreamPromptCaps:
         await dream.run()
 
         user_msg = mock_provider.chat_with_retry.call_args.kwargs["messages"][1]["content"]
-        history_section = user_msg.split("## Conversation History\n")[1].split("\n\n## Current Date")[0]
+        history_section = user_msg.split("## Conversation History\n")[1].split(
+            "\n\n## Current Date"
+        )[0]
         assert len(history_section) < dream._HISTORY_ENTRY_PREVIEW_MAX_CHARS + 500
-

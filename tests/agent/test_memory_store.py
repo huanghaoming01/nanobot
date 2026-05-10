@@ -173,7 +173,7 @@ class TestHistoryWithCursor:
         def failing_replace(*args, **kwargs):
             raise RuntimeError("Simulated failure")
 
-        monkeypatch.setattr('os.replace', failing_replace)
+        monkeypatch.setattr("os.replace", failing_replace)
 
         with pytest.raises(RuntimeError):
             store._write_entries(entries)

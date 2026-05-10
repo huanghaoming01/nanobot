@@ -39,9 +39,7 @@ class TestIsDeliverable:
         )
 
     def test_leaked_judgment_call_blocked(self):
-        assert not HeartbeatService._is_deliverable(
-            "Best judgment call: stay quiet."
-        )
+        assert not HeartbeatService._is_deliverable("Best judgment call: stay quiet.")
 
     def test_leaked_decision_logic_blocked(self):
         assert not HeartbeatService._is_deliverable(
@@ -59,14 +57,10 @@ class TestIsDeliverable:
         )
 
     def test_leaked_supposed_to_blocked(self):
-        assert not HeartbeatService._is_deliverable(
-            "I am supposed to scan for urgent emails."
-        )
+        assert not HeartbeatService._is_deliverable("I am supposed to scan for urgent emails.")
 
     def test_case_insensitive(self):
-        assert not HeartbeatService._is_deliverable(
-            "HEARTBEAT.MD has tasks listed."
-        )
+        assert not HeartbeatService._is_deliverable("HEARTBEAT.MD has tasks listed.")
 
     def test_empty_string_is_deliverable(self):
         """Empty string won't reach _is_deliverable in practice (caught earlier),
@@ -92,7 +86,8 @@ async def test_tick_suppresses_finalization_fallback(tmp_path, monkeypatch) -> N
                 content="",
                 tool_calls=[
                     ToolCallRequest(
-                        id="hb_1", name="heartbeat",
+                        id="hb_1",
+                        name="heartbeat",
                         arguments={"action": "run", "tasks": "check inbox"},
                     )
                 ],
@@ -147,7 +142,8 @@ async def test_tick_suppresses_leaked_reasoning(tmp_path, monkeypatch) -> None:
                 content="",
                 tool_calls=[
                     ToolCallRequest(
-                        id="hb_1", name="heartbeat",
+                        id="hb_1",
+                        name="heartbeat",
                         arguments={"action": "run", "tasks": "check status"},
                     )
                 ],
@@ -195,7 +191,8 @@ async def test_tick_delivers_normal_report(tmp_path, monkeypatch) -> None:
                 content="",
                 tool_calls=[
                     ToolCallRequest(
-                        id="hb_1", name="heartbeat",
+                        id="hb_1",
+                        name="heartbeat",
                         arguments={"action": "run", "tasks": "check inbox"},
                     )
                 ],

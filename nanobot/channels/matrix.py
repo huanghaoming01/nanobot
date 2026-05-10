@@ -28,10 +28,11 @@ try:
         RoomMessageMedia,
         RoomMessageText,
         RoomSendError,
+        RoomSendResponse,
         RoomTypingError,
         SyncError,
-        UploadError, RoomSendResponse,
-)
+        UploadError,
+    )
     from nio.crypto.attachments import decrypt_attachment
     from nio.exceptions import EncryptionError
 except ImportError as e:
@@ -67,13 +68,40 @@ MATRIX_MARKDOWN = create_markdown(
 )
 
 MATRIX_ALLOWED_HTML_TAGS = {
-    "p", "a", "strong", "em", "del", "code", "pre", "blockquote",
-    "ul", "ol", "li", "h1", "h2", "h3", "h4", "h5", "h6",
-    "hr", "br", "table", "thead", "tbody", "tr", "th", "td",
-    "caption", "sup", "sub", "img",
+    "p",
+    "a",
+    "strong",
+    "em",
+    "del",
+    "code",
+    "pre",
+    "blockquote",
+    "ul",
+    "ol",
+    "li",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "hr",
+    "br",
+    "table",
+    "thead",
+    "tbody",
+    "tr",
+    "th",
+    "td",
+    "caption",
+    "sup",
+    "sub",
+    "img",
 }
 MATRIX_ALLOWED_HTML_ATTRIBUTES: dict[str, set[str]] = {
-    "a": {"href"}, "code": {"class"}, "ol": {"start"},
+    "a": {"href"},
+    "code": {"class"},
+    "ol": {"start"},
     "img": {"src", "alt", "title", "width", "height"},
 }
 MATRIX_ALLOWED_URL_SCHEMES = {"https", "http", "matrix", "mailto", "mxc"}
@@ -82,11 +110,17 @@ MATRIX_ALLOWED_URL_SCHEMES = {"https", "http", "matrix", "mailto", "mxc"}
 def _filter_matrix_html_attribute(tag: str, attr: str, value: str) -> str | None:
     """Filter attribute values to a safe Matrix-compatible subset."""
     if tag == "a" and attr == "href":
-        return value if value.lower().startswith(("https://", "http://", "matrix:", "mailto:")) else None
+        return (
+            value
+            if value.lower().startswith(("https://", "http://", "matrix:", "mailto:"))
+            else None
+        )
     if tag == "img" and attr == "src":
         return value if value.lower().startswith("mxc://") else None
     if tag == "code" and attr == "class":
-        classes = [c for c in value.split() if c.startswith("language-") and not c.startswith("language-_")]
+        classes = [
+            c for c in value.split() if c.startswith("language-") and not c.startswith("language-_")
+        ]
         return " ".join(classes) if classes else None
     return value
 
@@ -100,6 +134,7 @@ MATRIX_HTML_CLEANER = nh3.Cleaner(
     link_rel="noopener noreferrer",
 )
 
+
 @dataclass
 class _StreamBuf:
     """
@@ -107,15 +142,17 @@ class _StreamBuf:
 
     :ivar text: Stores the text content of the buffer.
     :type text: str
-    :ivar event_id: Identifier for the associated event. None indicates no 
+    :ivar event_id: Identifier for the associated event. None indicates no
         specific event association.
     :type event_id: str | None
     :ivar last_edit: Timestamp of the most recent edit to the buffer.
     :type last_edit: float
     """
+
     text: str = ""
     event_id: str | None = None
     last_edit: float = 0.0
+
 
 def _render_markdown_html(text: str) -> str | None:
     """Render markdown to sanitized HTML; returns None for plain text."""
@@ -140,19 +177,19 @@ def _build_matrix_text_content(
 ) -> dict[str, object]:
     """
     Constructs and returns a dictionary representing the matrix text content with optional
-    HTML formatting and reference to an existing event for replacement. This function is 
+    HTML formatting and reference to an existing event for replacement. This function is
     primarily used to create content payloads compatible with the Matrix messaging protocol.
 
     :param text: The plain text content to include in the message.
     :type text: str
-    :param event_id: Optional ID of the event to replace. If provided, the function will 
-        include information indicating that the message is a replacement of the specified 
+    :param event_id: Optional ID of the event to replace. If provided, the function will
+        include information indicating that the message is a replacement of the specified
         event.
     :type event_id: str | None
     :param thread_relates_to: Optional Matrix thread relation metadata. For edits this is
         stored in ``m.new_content`` so the replacement remains in the same thread.
     :type thread_relates_to: dict[str, object] | None
-    :return: A dictionary containing the matrix text content, potentially enriched with 
+    :return: A dictionary containing the matrix text content, potentially enriched with
         HTML formatting and replacement metadata if applicable.
     :rtype: dict[str, object]
     """
@@ -201,7 +238,7 @@ class MatrixChannel(BaseChannel):
 
     name = "matrix"
     display_name = "Matrix"
-    _STREAM_EDIT_INTERVAL = 2 # min seconds between edit_message_text calls
+    _STREAM_EDIT_INTERVAL = 2  # min seconds between edit_message_text calls
     monotonic_time = time.monotonic
 
     @classmethod
@@ -230,7 +267,6 @@ class MatrixChannel(BaseChannel):
         self._server_upload_limit_checked = False
         self._stream_bufs: dict[str, _StreamBuf] = {}
         self._started_at_ms: int = 0
-
 
     async def start(self) -> None:
         """Start Matrix client and begin sync loop."""
@@ -264,11 +300,16 @@ class MatrixChannel(BaseChannel):
 
         if self.config.password:
             if self.config.access_token or self.config.device_id:
-                self.logger.warning("Password-based login active; access_token and device_id fields will be ignored.")
+                self.logger.warning(
+                    "Password-based login active; access_token and device_id fields will be ignored."
+                )
 
             create_new_session = True
             if self.session_path.exists():
-                self.logger.info("Found session.json at {}; attempting to use existing session...", self.session_path)
+                self.logger.info(
+                    "Found session.json at {}; attempting to use existing session...",
+                    self.session_path,
+                )
                 try:
                     with open(self.session_path, "r", encoding="utf-8") as f:
                         session = json.load(f)
@@ -303,7 +344,9 @@ class MatrixChannel(BaseChannel):
                 self.logger.warning("Failed to load from existing session: {}", e)
 
         else:
-            self.logger.warning("Unable to load a session due to missing password, access_token, or device_id; encryption may not work")
+            self.logger.warning(
+                "Unable to load a session due to missing password, access_token, or device_id; encryption may not work"
+            )
             return
 
         self._sync_task = asyncio.create_task(self._sync_loop())
@@ -317,8 +360,9 @@ class MatrixChannel(BaseChannel):
             self.client.stop_sync_forever()
         if self._sync_task:
             try:
-                await asyncio.wait_for(asyncio.shield(self._sync_task),
-                                       timeout=self.config.sync_stop_grace_seconds)
+                await asyncio.wait_for(
+                    asyncio.shield(self._sync_task), timeout=self.config.sync_stop_grace_seconds
+                )
             except (asyncio.TimeoutError, asyncio.CancelledError):
                 self._sync_task.cancel()
                 with suppress(asyncio.CancelledError):
@@ -368,15 +412,22 @@ class MatrixChannel(BaseChannel):
 
     @staticmethod
     def _build_outbound_attachment_content(
-        *, filename: str, mime: str, size_bytes: int,
-        mxc_url: str, encryption_info: dict[str, Any] | None = None,
+        *,
+        filename: str,
+        mime: str,
+        size_bytes: int,
+        mxc_url: str,
+        encryption_info: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Build Matrix content payload for an uploaded file/image/audio/video."""
         prefix = mime.split("/")[0]
         msgtype = {"image": "m.image", "audio": "m.audio", "video": "m.video"}.get(prefix, "m.file")
         content: dict[str, Any] = {
-            "msgtype": msgtype, "body": filename, "filename": filename,
-            "info": {"mimetype": mime, "size": size_bytes}, "m.mentions": {},
+            "msgtype": msgtype,
+            "body": filename,
+            "filename": filename,
+            "info": {"mimetype": mime, "size": size_bytes},
+            "m.mentions": {},
         }
         if encryption_info:
             content["file"] = {**encryption_info, "url": mxc_url}
@@ -390,12 +441,17 @@ class MatrixChannel(BaseChannel):
         room = getattr(self.client, "rooms", {}).get(room_id)
         return bool(getattr(room, "encrypted", False))
 
-    async def _send_room_content(self, room_id: str,
-                                 content: dict[str, Any]) -> None | RoomSendResponse | RoomSendError:
+    async def _send_room_content(
+        self, room_id: str, content: dict[str, Any]
+    ) -> None | RoomSendResponse | RoomSendError:
         """Send m.room.message with E2EE options."""
         if not self.client:
             return None
-        kwargs: dict[str, Any] = {"room_id": room_id, "message_type": "m.room.message", "content": content}
+        kwargs: dict[str, Any] = {
+            "room_id": room_id,
+            "message_type": "m.room.message",
+            "content": content,
+        }
 
         if self.config.e2ee_enabled:
             kwargs["ignore_unverified_devices"] = True
@@ -429,7 +485,10 @@ class MatrixChannel(BaseChannel):
         return min(local_limit, server_limit) if local_limit else 0
 
     async def _upload_and_send_attachment(
-        self, room_id: str, path: Path, limit_bytes: int,
+        self,
+        room_id: str,
+        path: Path,
+        limit_bytes: int,
         relates_to: dict[str, Any] | None = None,
     ) -> str | None:
         """Upload one local file to Matrix and send it as a media message. Returns failure marker or None."""
@@ -453,7 +512,9 @@ class MatrixChannel(BaseChannel):
         try:
             with resolved.open("rb") as f:
                 upload_result = await self.client.upload(
-                    f, content_type=mime, filename=filename,
+                    f,
+                    content_type=mime,
+                    filename=filename,
                     encrypt=self.config.e2ee_enabled and self._is_encrypted_room(room_id),
                     filesize=size_bytes,
                 )
@@ -462,7 +523,11 @@ class MatrixChannel(BaseChannel):
             return fail
 
         upload_response = upload_result[0] if isinstance(upload_result, tuple) else upload_result
-        encryption_info = upload_result[1] if isinstance(upload_result, tuple) and isinstance(upload_result[1], dict) else None
+        encryption_info = (
+            upload_result[1]
+            if isinstance(upload_result, tuple) and isinstance(upload_result[1], dict)
+            else None
+        )
         if isinstance(upload_response, UploadError):
             return fail
         mxc_url = getattr(upload_response, "content_uri", None)
@@ -470,15 +535,20 @@ class MatrixChannel(BaseChannel):
             return fail
 
         content = self._build_outbound_attachment_content(
-            filename=filename, mime=mime, size_bytes=size_bytes,
-            mxc_url=mxc_url, encryption_info=encryption_info,
+            filename=filename,
+            mime=mime,
+            size_bytes=size_bytes,
+            mxc_url=mxc_url,
+            encryption_info=encryption_info,
         )
         if relates_to:
             content["m.relates_to"] = relates_to
         try:
             await self._send_room_content(room_id, content)
         except Exception:
-            self.logger.error("Matrix room content send failed for room_id=%s", room_id, exc_info=True)
+            self.logger.error(
+                "Matrix room content send failed for room_id=%s", room_id, exc_info=True
+            )
             return fail
         return None
 
@@ -503,7 +573,11 @@ class MatrixChannel(BaseChannel):
                     ):
                         failures.append(fail)
             if failures:
-                text = f"{text.rstrip()}\n{chr(10).join(failures)}" if text.strip() else "\n".join(failures)
+                text = (
+                    f"{text.rstrip()}\n{chr(10).join(failures)}"
+                    if text.strip()
+                    else "\n".join(failures)
+                )
             if text.strip():
                 content = _build_matrix_text_content(text)
                 if relates_to:
@@ -513,7 +587,9 @@ class MatrixChannel(BaseChannel):
             if not is_progress:
                 await self._stop_typing_keepalive(msg.chat_id, clear_typing=True)
 
-    async def send_delta(self, chat_id: str, delta: str, metadata: dict[str, Any] | None = None) -> None:
+    async def send_delta(
+        self, chat_id: str, delta: str, metadata: dict[str, Any] | None = None
+    ) -> None:
         meta = metadata or {}
         relates_to = self._build_thread_relates_to(metadata)
 
@@ -523,7 +599,7 @@ class MatrixChannel(BaseChannel):
                 return
 
             await self._stop_typing_keepalive(chat_id, clear_typing=True)
-            
+
             content = _build_matrix_text_content(
                 buf.text,
                 buf.event_id,
@@ -537,7 +613,7 @@ class MatrixChannel(BaseChannel):
             buf = _StreamBuf()
             self._stream_bufs[chat_id] = buf
         buf.text += delta
-    
+
         if not buf.text.strip():
             return
 
@@ -558,7 +634,6 @@ class MatrixChannel(BaseChannel):
             except Exception:
                 self.logger.error("Stream send/edit failed for chat_id=%s", chat_id, exc_info=True)
                 await self._stop_typing_keepalive(chat_id, clear_typing=True)
-
 
     def _register_event_callbacks(self) -> None:
         self.client.add_event_callback(self._on_message, RoomMessageText)
@@ -602,8 +677,9 @@ class MatrixChannel(BaseChannel):
         if not self.client:
             return
         with suppress(Exception):
-            response = await self.client.room_typing(room_id=room_id, typing_state=typing,
-                                                     timeout=TYPING_NOTICE_TIMEOUT_MS)
+            response = await self.client.room_typing(
+                room_id=room_id, typing_state=typing, timeout=TYPING_NOTICE_TIMEOUT_MS
+            )
             if isinstance(response, RoomTypingError):
                 self.logger.debug("typing failed for {}: {}", room_id, response)
 
@@ -726,8 +802,12 @@ class MatrixChannel(BaseChannel):
         reply_to = metadata.get("thread_reply_to_event_id") or metadata.get("event_id")
         if not isinstance(reply_to, str) or not reply_to:
             return None
-        return {"rel_type": "m.thread", "event_id": root_id,
-                "m.in_reply_to": {"event_id": reply_to}, "is_falling_back": True}
+        return {
+            "rel_type": "m.thread",
+            "event_id": root_id,
+            "m.in_reply_to": {"event_id": reply_to},
+            "is_falling_back": True,
+        }
 
     def _event_attachment_type(self, event: MatrixMediaEvent) -> str:
         msgtype = self._event_source_content(event).get("msgtype")
@@ -735,9 +815,11 @@ class MatrixChannel(BaseChannel):
 
     @staticmethod
     def _is_encrypted_media_event(event: MatrixMediaEvent) -> bool:
-        return (isinstance(getattr(event, "key", None), dict)
-                and isinstance(getattr(event, "hashes", None), dict)
-                and isinstance(getattr(event, "iv", None), str))
+        return (
+            isinstance(getattr(event, "key", None), dict)
+            and isinstance(getattr(event, "hashes", None), dict)
+            and isinstance(getattr(event, "iv", None), str)
+        )
 
     def _event_declared_size_bytes(self, event: MatrixMediaEvent) -> int | None:
         info = self._event_source_content(event).get("info")
@@ -758,8 +840,9 @@ class MatrixChannel(BaseChannel):
                 return candidate
         return _DEFAULT_ATTACH_NAME if attachment_type == "file" else attachment_type
 
-    def _build_attachment_path(self, event: MatrixMediaEvent, attachment_type: str,
-                               filename: str, mime: str | None) -> Path:
+    def _build_attachment_path(
+        self, event: MatrixMediaEvent, attachment_type: str, filename: str, mime: str | None
+    ) -> Path:
         safe_name = safe_filename(Path(filename).name) or _DEFAULT_ATTACH_NAME
         suffix = Path(safe_name).suffix
         if not suffix and mime:
@@ -793,7 +876,11 @@ class MatrixChannel(BaseChannel):
         return None
 
     def _decrypt_media_bytes(self, event: MatrixMediaEvent, ciphertext: bytes) -> bytes | None:
-        key_obj, hashes, iv = getattr(event, "key", None), getattr(event, "hashes", None), getattr(event, "iv", None)
+        key_obj, hashes, iv = (
+            getattr(event, "key", None),
+            getattr(event, "hashes", None),
+            getattr(event, "iv", None),
+        )
         key = key_obj.get("k") if isinstance(key_obj, dict) else None
         sha256 = hashes.get("sha256") if isinstance(hashes, dict) else None
         if not all(isinstance(v, str) for v in (key, sha256, iv)):
@@ -805,7 +892,9 @@ class MatrixChannel(BaseChannel):
             return None
 
     async def _fetch_media_attachment(
-        self, room: MatrixRoom, event: MatrixMediaEvent,
+        self,
+        room: MatrixRoom,
+        event: MatrixMediaEvent,
     ) -> tuple[dict[str, Any] | None, str]:
         """Download, decrypt if needed, and persist a Matrix attachment."""
         atype = self._event_attachment_type(event)
@@ -842,10 +931,14 @@ class MatrixChannel(BaseChannel):
             return None, fail
 
         attachment = {
-            "type": atype, "mime": mime, "filename": filename,
+            "type": atype,
+            "mime": mime,
+            "filename": filename,
             "event_id": str(getattr(event, "event_id", "") or ""),
-            "encrypted": encrypted, "size_bytes": len(data),
-            "path": str(path), "mxc_url": mxc_url,
+            "encrypted": encrypted,
+            "size_bytes": len(data),
+            "path": str(path),
+            "mxc_url": mxc_url,
         }
         return attachment, _ATTACH_MARKER.format(path)
 
@@ -868,8 +961,10 @@ class MatrixChannel(BaseChannel):
         await self._start_typing_keepalive(room.room_id)
         try:
             await self._handle_message(
-                sender_id=event.sender, chat_id=room.room_id,
-                content=event.body, metadata=self._base_metadata(room, event),
+                sender_id=event.sender,
+                chat_id=room.room_id,
+                content=event.body,
+                metadata=self._base_metadata(room, event),
             )
         except Exception:
             await self._stop_typing_keepalive(room.room_id, clear_typing=True)
@@ -903,7 +998,8 @@ class MatrixChannel(BaseChannel):
             if attachment:
                 meta["attachments"] = [attachment]
             await self._handle_message(
-                sender_id=event.sender, chat_id=room.room_id,
+                sender_id=event.sender,
+                chat_id=room.room_id,
                 content="\n".join(parts),
                 media=[attachment["path"]] if attachment else [],
                 metadata=meta,

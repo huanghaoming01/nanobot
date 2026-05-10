@@ -137,6 +137,7 @@ class StreamRenderer:
     def pause(self):
         """Context manager: pause spinner for external output. No-op once streaming has started."""
         from contextlib import nullcontext
+
         if self._spinner:
             return self._spinner.pause()
         return nullcontext()

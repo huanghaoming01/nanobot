@@ -60,10 +60,12 @@ def test_bedrock_provider_is_registered_and_matches_without_api_key() -> None:
     assert spec.is_direct is True
     assert hasattr(ProvidersConfig(), "bedrock")
 
-    cfg = Config.model_validate({
-        "agents": {"defaults": {"model": "bedrock/global.anthropic.claude-opus-4-7"}},
-        "providers": {"bedrock": {"region": "us-east-1"}},
-    })
+    cfg = Config.model_validate(
+        {
+            "agents": {"defaults": {"model": "bedrock/global.anthropic.claude-opus-4-7"}},
+            "providers": {"bedrock": {"region": "us-east-1"}},
+        }
+    )
 
     assert cfg.get_provider_name() == "bedrock"
     assert cfg.get_provider().region == "us-east-1"
@@ -110,25 +112,29 @@ def test_generic_bedrock_model_keeps_temperature_and_skips_anthropic_thinking() 
 
 def test_build_kwargs_converts_messages_tools_and_tool_results() -> None:
     provider = BedrockProvider(region="us-east-1", client=FakeClient())
-    tools = [{
-        "type": "function",
-        "function": {
-            "name": "read_file",
-            "description": "Read a file",
-            "parameters": {"type": "object", "properties": {"path": {"type": "string"}}},
-        },
-    }]
+    tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": "read_file",
+                "description": "Read a file",
+                "parameters": {"type": "object", "properties": {"path": {"type": "string"}}},
+            },
+        }
+    ]
     messages = [
         {"role": "system", "content": "You are helpful."},
         {"role": "user", "content": "read x"},
         {
             "role": "assistant",
             "content": "",
-            "tool_calls": [{
-                "id": "toolu_1",
-                "type": "function",
-                "function": {"name": "read_file", "arguments": '{"path": "x"}'},
-            }],
+            "tool_calls": [
+                {
+                    "id": "toolu_1",
+                    "type": "function",
+                    "function": {"name": "read_file", "arguments": '{"path": "x"}'},
+                }
+            ],
         },
         {"role": "tool", "tool_call_id": "toolu_1", "name": "read_file", "content": "ok"},
         {"role": "user", "content": "continue"},
@@ -145,13 +151,15 @@ def test_build_kwargs_converts_messages_tools_and_tool_results() -> None:
     )
 
     assert kwargs["system"] == [{"text": "You are helpful."}]
-    assert kwargs["messages"][1]["content"] == [{
-        "toolUse": {
-            "toolUseId": "toolu_1",
-            "name": "read_file",
-            "input": {"path": "x"},
+    assert kwargs["messages"][1]["content"] == [
+        {
+            "toolUse": {
+                "toolUseId": "toolu_1",
+                "name": "read_file",
+                "input": {"path": "x"},
+            }
         }
-    }]
+    ]
     assert kwargs["messages"][2]["role"] == "user"
     assert kwargs["messages"][2]["content"][0]["toolResult"]["toolUseId"] == "toolu_1"
     assert kwargs["messages"][2]["content"][1] == {"text": "continue"}
@@ -195,31 +203,33 @@ def test_parse_response_maps_text_tools_reasoning_usage_and_stop_reason() -> Non
 
 @pytest.mark.asyncio
 async def test_chat_stream_aggregates_text_tool_use_and_usage() -> None:
-    client = FakeClient(stream_events=[
-        {"contentBlockDelta": {"contentBlockIndex": 0, "delta": {"text": "he"}}},
-        {"contentBlockDelta": {"contentBlockIndex": 0, "delta": {"text": "llo"}}},
-        {
-            "contentBlockStart": {
-                "contentBlockIndex": 1,
-                "start": {"toolUse": {"toolUseId": "t1", "name": "search"}},
-            }
-        },
-        {
-            "contentBlockDelta": {
-                "contentBlockIndex": 1,
-                "delta": {"toolUse": {"input": '{"q":'}},
-            }
-        },
-        {
-            "contentBlockDelta": {
-                "contentBlockIndex": 1,
-                "delta": {"toolUse": {"input": '"x"}'}},
-            }
-        },
-        {"contentBlockStop": {"contentBlockIndex": 1}},
-        {"messageStop": {"stopReason": "tool_use"}},
-        {"metadata": {"usage": {"inputTokens": 3, "outputTokens": 4, "totalTokens": 7}}},
-    ])
+    client = FakeClient(
+        stream_events=[
+            {"contentBlockDelta": {"contentBlockIndex": 0, "delta": {"text": "he"}}},
+            {"contentBlockDelta": {"contentBlockIndex": 0, "delta": {"text": "llo"}}},
+            {
+                "contentBlockStart": {
+                    "contentBlockIndex": 1,
+                    "start": {"toolUse": {"toolUseId": "t1", "name": "search"}},
+                }
+            },
+            {
+                "contentBlockDelta": {
+                    "contentBlockIndex": 1,
+                    "delta": {"toolUse": {"input": '{"q":'}},
+                }
+            },
+            {
+                "contentBlockDelta": {
+                    "contentBlockIndex": 1,
+                    "delta": {"toolUse": {"input": '"x"}'}},
+                }
+            },
+            {"contentBlockStop": {"contentBlockIndex": 1}},
+            {"messageStop": {"stopReason": "tool_use"}},
+            {"metadata": {"usage": {"inputTokens": 3, "outputTokens": 4, "totalTokens": 7}}},
+        ]
+    )
     provider = BedrockProvider(region="us-east-1", client=client)
     deltas: list[str] = []
 

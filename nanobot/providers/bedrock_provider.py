@@ -83,7 +83,7 @@ class BedrockProvider(LLMProvider):
     @staticmethod
     def _strip_prefix(model: str) -> str:
         if model.startswith("bedrock/"):
-            return model[len("bedrock/"):]
+            return model[len("bedrock/") :]
         return model
 
     @staticmethod
@@ -117,7 +117,9 @@ class BedrockProvider(LLMProvider):
         return {"image": {"format": fmt, "source": {"bytes": data}}}
 
     @classmethod
-    def _content_blocks(cls, content: Any, *, for_tool_result: bool = False) -> list[dict[str, Any]]:
+    def _content_blocks(
+        cls, content: Any, *, for_tool_result: bool = False
+    ) -> list[dict[str, Any]]:
         if isinstance(content, str) or content is None:
             return [{"text": content or "(empty)"}]
         if not isinstance(content, list):
@@ -156,7 +158,8 @@ class BedrockProvider(LLMProvider):
     @classmethod
     def _system_blocks(cls, content: Any) -> list[dict[str, Any]]:
         return [
-            block for block in cls._content_blocks(content)
+            block
+            for block in cls._content_blocks(content)
             if "text" in block or "cachePoint" in block or "guardContent" in block
         ]
 
@@ -264,9 +267,19 @@ class BedrockProvider(LLMProvider):
         last_popped: dict[str, Any] | None = None
         while merged and merged[-1].get("role") == "assistant":
             last_popped = merged.pop()
-        if not merged and last_popped is not None and not BedrockProvider._has_tool_use(last_popped):
-            merged.append({"role": "user", "content": last_popped.get("content") or [{"text": "(empty)"}]})
-        if merged and merged[0].get("role") == "assistant" and not BedrockProvider._has_tool_use(merged[0]):
+        if (
+            not merged
+            and last_popped is not None
+            and not BedrockProvider._has_tool_use(last_popped)
+        ):
+            merged.append(
+                {"role": "user", "content": last_popped.get("content") or [{"text": "(empty)"}]}
+            )
+        if (
+            merged
+            and merged[0].get("role") == "assistant"
+            and not BedrockProvider._has_tool_use(merged[0])
+        ):
             merged.insert(0, {"role": "user", "content": [{"text": "(conversation continued)"}]})
         return merged
 
@@ -465,11 +478,13 @@ class BedrockProvider(LLMProvider):
             tool_use = block.get("toolUse")
             if isinstance(tool_use, dict):
                 arguments = tool_use.get("input") if isinstance(tool_use.get("input"), dict) else {}
-                tool_calls.append(ToolCallRequest(
-                    id=str(tool_use.get("toolUseId") or ""),
-                    name=str(tool_use.get("name") or ""),
-                    arguments=arguments,
-                ))
+                tool_calls.append(
+                    ToolCallRequest(
+                        id=str(tool_use.get("toolUseId") or ""),
+                        name=str(tool_use.get("name") or ""),
+                        arguments=arguments,
+                    )
+                )
             reasoning_text, thinking = cls._parse_reasoning(block)
             if reasoning_text:
                 reasoning_parts.append(reasoning_text)
@@ -541,26 +556,32 @@ class BedrockProvider(LLMProvider):
             reasoning_buf = state.setdefault("reasoning_buffers", {}).pop(idx, None)
             if reasoning_buf:
                 if reasoning_buf.get("text"):
-                    thinking_blocks.append({
-                        "type": "thinking",
-                        "thinking": reasoning_buf["text"],
-                        "signature": reasoning_buf.get("signature", ""),
-                    })
+                    thinking_blocks.append(
+                        {
+                            "type": "thinking",
+                            "thinking": reasoning_buf["text"],
+                            "signature": reasoning_buf.get("signature", ""),
+                        }
+                    )
                 elif reasoning_buf.get("redactedContent") is not None:
                     redacted = reasoning_buf["redactedContent"]
                     if isinstance(redacted, (bytes, bytearray)):
                         redacted_block = {
                             "type": "redacted_thinking",
-                            "redactedContentBase64": base64.b64encode(bytes(redacted)).decode("ascii"),
+                            "redactedContentBase64": base64.b64encode(bytes(redacted)).decode(
+                                "ascii"
+                            ),
                         }
                     else:
                         redacted_block = {
                             "type": "redacted_thinking",
                             "redactedContent": redacted,
                         }
-                    thinking_blocks.append({
-                        **redacted_block,
-                    })
+                    thinking_blocks.append(
+                        {
+                            **redacted_block,
+                        }
+                    )
             return None
 
         if "messageStop" in event:
@@ -593,11 +614,13 @@ class BedrockProvider(LLMProvider):
                     args = json_repair.loads(buf["input"])
                 except Exception:
                     args = {}
-            tool_calls.append(ToolCallRequest(
-                id=buf.get("id") or "",
-                name=buf.get("name") or "",
-                arguments=args if isinstance(args, dict) else {},
-            ))
+            tool_calls.append(
+                ToolCallRequest(
+                    id=buf.get("id") or "",
+                    name=buf.get("name") or "",
+                    arguments=args if isinstance(args, dict) else {},
+                )
+            )
         return LLMResponse(
             content="".join(content_parts) or None,
             tool_calls=tool_calls,
@@ -632,7 +655,9 @@ class BedrockProvider(LLMProvider):
         should_retry = None
         if status_code is not None:
             should_retry = int(status_code) == 429 or int(status_code) >= 500
-        if any(token in code_text for token in ("throttl", "timeout", "unavailable", "modelnotready")):
+        if any(
+            token in code_text for token in ("throttl", "timeout", "unavailable", "modelnotready")
+        ):
             should_retry = True
 
         return LLMResponse(
@@ -717,8 +742,7 @@ class BedrockProvider(LLMProvider):
         except asyncio.TimeoutError:
             return LLMResponse(
                 content=(
-                    f"Error calling LLM: stream stalled for more than "
-                    f"{idle_timeout_s} seconds"
+                    f"Error calling LLM: stream stalled for more than {idle_timeout_s} seconds"
                 ),
                 finish_reason="error",
                 error_kind="timeout",

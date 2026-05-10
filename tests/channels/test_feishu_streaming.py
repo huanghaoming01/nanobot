@@ -1,4 +1,5 @@
 """Tests for Feishu streaming (send_delta) via CardKit streaming API."""
+
 import time
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -208,7 +209,9 @@ class TestSendDelta:
     @pytest.mark.asyncio
     async def test_second_delta_within_interval_skips_update(self):
         ch = _make_channel()
-        buf = _FeishuStreamBuf(text="Hello ", card_id="card_1", sequence=1, last_edit=time.monotonic())
+        buf = _FeishuStreamBuf(
+            text="Hello ", card_id="card_1", sequence=1, last_edit=time.monotonic()
+        )
         ch._stream_bufs["oc_chat1"] = buf
 
         await ch.send_delta("oc_chat1", "world")
@@ -219,7 +222,9 @@ class TestSendDelta:
     @pytest.mark.asyncio
     async def test_delta_after_interval_updates_text(self):
         ch = _make_channel()
-        buf = _FeishuStreamBuf(text="Hello ", card_id="card_1", sequence=1, last_edit=time.monotonic() - 1.0)
+        buf = _FeishuStreamBuf(
+            text="Hello ", card_id="card_1", sequence=1, last_edit=time.monotonic() - 1.0
+        )
         ch._stream_bufs["oc_chat1"] = buf
 
         ch._client.cardkit.v1.card_element.content.return_value = _mock_content_response()
@@ -233,7 +238,10 @@ class TestSendDelta:
     async def test_stream_end_sends_final_update(self):
         ch = _make_channel()
         ch._stream_bufs["oc_chat1"] = _FeishuStreamBuf(
-            text="Final content", card_id="card_1", sequence=3, last_edit=0.0,
+            text="Final content",
+            card_id="card_1",
+            sequence=3,
+            last_edit=0.0,
         )
         ch._client.cardkit.v1.card_element.content.return_value = _mock_content_response()
         ch._client.cardkit.v1.card.settings.return_value = _mock_content_response()
@@ -251,7 +259,10 @@ class TestSendDelta:
         """If card creation failed, stream_end falls back to a plain card message."""
         ch = _make_channel()
         ch._stream_bufs["oc_chat1"] = _FeishuStreamBuf(
-            text="Fallback content", card_id=None, sequence=0, last_edit=0.0,
+            text="Fallback content",
+            card_id=None,
+            sequence=0,
+            last_edit=0.0,
         )
         ch._client.im.v1.message.create.return_value = _mock_send_response("om_fb")
 
@@ -265,7 +276,10 @@ class TestSendDelta:
     async def test_stream_end_fallback_group_uses_create_when_reply_disabled(self):
         ch = _make_channel(reply_to_message=False)
         ch._stream_bufs["om_001"] = _FeishuStreamBuf(
-            text="Fallback content", card_id=None, sequence=0, last_edit=0.0,
+            text="Fallback content",
+            card_id=None,
+            sequence=0,
+            last_edit=0.0,
         )
         ch._client.im.v1.message.create.return_value = _mock_send_response("om_fb")
 
@@ -282,7 +296,10 @@ class TestSendDelta:
     async def test_stream_end_fallback_keeps_existing_topic_when_reply_disabled(self):
         ch = _make_channel(reply_to_message=False)
         ch._stream_bufs["om_001"] = _FeishuStreamBuf(
-            text="Fallback content", card_id=None, sequence=0, last_edit=0.0,
+            text="Fallback content",
+            card_id=None,
+            sequence=0,
+            last_edit=0.0,
         )
         reply_resp = MagicMock()
         reply_resp.success.return_value = True
@@ -308,7 +325,10 @@ class TestSendDelta:
     async def test_stream_end_fallback_group_replies_when_reply_enabled(self):
         ch = _make_channel(reply_to_message=True)
         ch._stream_bufs["om_001"] = _FeishuStreamBuf(
-            text="Fallback content", card_id=None, sequence=0, last_edit=0.0,
+            text="Fallback content",
+            card_id=None,
+            sequence=0,
+            last_edit=0.0,
         )
         reply_resp = MagicMock()
         reply_resp.success.return_value = True
@@ -330,9 +350,14 @@ class TestSendDelta:
         """If streaming mode was closed (e.g. Feishu timeout), fall back to a regular card."""
         ch = _make_channel()
         ch._stream_bufs["oc_chat1"] = _FeishuStreamBuf(
-            text="Lost content", card_id="card_1", sequence=3, last_edit=0.0,
+            text="Lost content",
+            card_id="card_1",
+            sequence=3,
+            last_edit=0.0,
         )
-        ch._client.cardkit.v1.card_element.content.return_value = _mock_content_response(success=False)
+        ch._client.cardkit.v1.card_element.content.return_value = _mock_content_response(
+            success=False
+        )
         ch._client.im.v1.message.create.return_value = _mock_send_response("om_fb")
 
         await ch.send_delta("oc_chat1", "", metadata={"_stream_end": True})
@@ -387,12 +412,16 @@ class TestToolHintInlineStreaming:
         """With an active streaming buffer, tool hint appends to the card."""
         ch = _make_channel()
         ch._stream_bufs["oc_chat1"] = _FeishuStreamBuf(
-            text="Partial answer", card_id="card_1", sequence=2, last_edit=0.0,
+            text="Partial answer",
+            card_id="card_1",
+            sequence=2,
+            last_edit=0.0,
         )
         ch._client.cardkit.v1.card_element.content.return_value = _mock_content_response()
 
         msg = OutboundMessage(
-            channel="feishu", chat_id="oc_chat1",
+            channel="feishu",
+            chat_id="oc_chat1",
             content='web_fetch("https://example.com")',
             metadata={"_tool_hint": True},
         )
@@ -409,8 +438,10 @@ class TestToolHintInlineStreaming:
         """When new delta arrives, the tool hint is kept as permanent content and delta appends after it."""
         ch = _make_channel()
         ch._stream_bufs["oc_chat1"] = _FeishuStreamBuf(
-            text="Partial answer\n\n🔧 web_fetch(\"url\")\n\n",
-            card_id="card_1", sequence=3, last_edit=0.0,
+            text='Partial answer\n\n🔧 web_fetch("url")\n\n',
+            card_id="card_1",
+            sequence=3,
+            last_edit=0.0,
         )
         ch._client.cardkit.v1.card_element.content.return_value = _mock_content_response()
 
@@ -428,7 +459,8 @@ class TestToolHintInlineStreaming:
         ch._client.im.v1.message.create.return_value = _mock_send_response("om_hint")
 
         msg = OutboundMessage(
-            channel="feishu", chat_id="oc_chat1",
+            channel="feishu",
+            chat_id="oc_chat1",
             content='read_file("path")',
             metadata={"_tool_hint": True},
         )
@@ -443,7 +475,8 @@ class TestToolHintInlineStreaming:
         ch._client.im.v1.message.create.return_value = _mock_send_response("om_hint")
 
         msg = OutboundMessage(
-            channel="feishu", chat_id="oc_chat1",
+            channel="feishu",
+            chat_id="oc_chat1",
             content='read_file("path")',
             metadata={"_tool_hint": True, "message_id": "om_001", "chat_type": "group"},
         )
@@ -460,7 +493,8 @@ class TestToolHintInlineStreaming:
         ch._client.im.v1.message.reply.return_value = reply_resp
 
         msg = OutboundMessage(
-            channel="feishu", chat_id="oc_chat1",
+            channel="feishu",
+            chat_id="oc_chat1",
             content='read_file("path")',
             metadata={
                 "_tool_hint": True,
@@ -484,7 +518,8 @@ class TestToolHintInlineStreaming:
         ch._client.im.v1.message.reply.return_value = reply_resp
 
         msg = OutboundMessage(
-            channel="feishu", chat_id="oc_chat1",
+            channel="feishu",
+            chat_id="oc_chat1",
             content='read_file("path")',
             metadata={"_tool_hint": True, "message_id": "om_001", "chat_type": "group"},
         )
@@ -500,19 +535,26 @@ class TestToolHintInlineStreaming:
         """When multiple tool hints arrive consecutively, each appends to the card."""
         ch = _make_channel()
         ch._stream_bufs["oc_chat1"] = _FeishuStreamBuf(
-            text="Partial answer", card_id="card_1", sequence=2, last_edit=0.0,
+            text="Partial answer",
+            card_id="card_1",
+            sequence=2,
+            last_edit=0.0,
         )
         ch._client.cardkit.v1.card_element.content.return_value = _mock_content_response()
 
         msg1 = OutboundMessage(
-            channel="feishu", chat_id="oc_chat1",
-            content='$ cd /project', metadata={"_tool_hint": True},
+            channel="feishu",
+            chat_id="oc_chat1",
+            content="$ cd /project",
+            metadata={"_tool_hint": True},
         )
         await ch.send(msg1)
 
         msg2 = OutboundMessage(
-            channel="feishu", chat_id="oc_chat1",
-            content='$ git status', metadata={"_tool_hint": True},
+            channel="feishu",
+            chat_id="oc_chat1",
+            content="$ git status",
+            metadata={"_tool_hint": True},
         )
         await ch.send(msg2)
 
@@ -528,8 +570,10 @@ class TestToolHintInlineStreaming:
         """When final _stream_end closes the card, tool hint is kept in the final text."""
         ch = _make_channel()
         ch._stream_bufs["oc_chat1"] = _FeishuStreamBuf(
-            text="Final content\n\n🔧 web_fetch(\"url\")\n\n",
-            card_id="card_1", sequence=3, last_edit=0.0,
+            text='Final content\n\n🔧 web_fetch("url")\n\n',
+            card_id="card_1",
+            sequence=3,
+            last_edit=0.0,
         )
         ch._client.cardkit.v1.card_element.content.return_value = _mock_content_response()
         ch._client.cardkit.v1.card.settings.return_value = _mock_content_response()
@@ -545,13 +589,18 @@ class TestToolHintInlineStreaming:
         """Empty or whitespace-only tool hint content is silently ignored."""
         ch = _make_channel()
         ch._stream_bufs["oc_chat1"] = _FeishuStreamBuf(
-            text="Partial answer", card_id="card_1", sequence=2, last_edit=0.0,
+            text="Partial answer",
+            card_id="card_1",
+            sequence=2,
+            last_edit=0.0,
         )
 
         for content in ("", "   ", "\t\n"):
             msg = OutboundMessage(
-                channel="feishu", chat_id="oc_chat1",
-                content=content, metadata={"_tool_hint": True},
+                channel="feishu",
+                chat_id="oc_chat1",
+                content=content,
+                metadata={"_tool_hint": True},
             )
             await ch.send(msg)
 

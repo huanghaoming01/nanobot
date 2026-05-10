@@ -1,4 +1,4 @@
-"""Message tool for sending messages to users."""
+"""用于向用户发送消息的 message 工具。"""
 
 import os
 from contextvars import ContextVar
@@ -40,7 +40,7 @@ from nanobot.config.paths import get_workspace_path
     )
 )
 class MessageTool(Tool):
-    """Tool to send messages to users on chat channels."""
+    """用于在聊天频道向用户发送消息的工具。"""
 
     def __init__(
         self,
@@ -51,9 +51,15 @@ class MessageTool(Tool):
         workspace: str | Path | None = None,
     ):
         self._send_callback = send_callback
-        self._workspace = Path(workspace).expanduser() if workspace is not None else get_workspace_path()
-        self._default_channel: ContextVar[str] = ContextVar("message_default_channel", default=default_channel)
-        self._default_chat_id: ContextVar[str] = ContextVar("message_default_chat_id", default=default_chat_id)
+        self._workspace = (
+            Path(workspace).expanduser() if workspace is not None else get_workspace_path()
+        )
+        self._default_channel: ContextVar[str] = ContextVar(
+            "message_default_channel", default=default_channel
+        )
+        self._default_chat_id: ContextVar[str] = ContextVar(
+            "message_default_chat_id", default=default_chat_id
+        )
         self._default_message_id: ContextVar[str | None] = ContextVar(
             "message_default_message_id",
             default=default_message_id,
@@ -75,26 +81,26 @@ class MessageTool(Tool):
         message_id: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> None:
-        """Set the current message context."""
+        """设置当前消息上下文。"""
         self._default_channel.set(channel)
         self._default_chat_id.set(chat_id)
         self._default_message_id.set(message_id)
         self._default_metadata.set(metadata or {})
 
     def set_send_callback(self, callback: Callable[[OutboundMessage], Awaitable[None]]) -> None:
-        """Set the callback for sending messages."""
+        """设置发送消息的回调。"""
         self._send_callback = callback
 
     def start_turn(self) -> None:
-        """Reset per-turn send tracking."""
+        """重置单回合发送跟踪。"""
         self._sent_in_turn = False
 
     def set_record_channel_delivery(self, active: bool):
-        """Mark tool-sent messages as proactive channel deliveries."""
+        """将工具发送的消息标记为主动频道投递。"""
         return self._record_channel_delivery_var.set(active)
 
     def reset_record_channel_delivery(self, token) -> None:
-        """Restore previous proactive delivery recording state."""
+        """恢复之前的主动投递记录状态。"""
         self._record_channel_delivery_var.reset(token)
 
     @property
@@ -131,9 +137,10 @@ class MessageTool(Tool):
         message_id: str | None = None,
         media: list[str] | None = None,
         buttons: list[list[str]] | None = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> str:
         from nanobot.utils.helpers import strip_think
+
         content = strip_think(content)
 
         if buttons is not None:
@@ -146,11 +153,9 @@ class MessageTool(Tool):
         default_chat_id = self._default_chat_id.get()
         channel = channel or default_channel
         chat_id = chat_id or default_chat_id
-        # Only inherit default message_id when targeting the same channel+chat.
-        # Cross-chat sends must not carry the original message_id, because
-        # some channels (e.g. Feishu) use it to determine the target
-        # conversation via their Reply API, which would route the message
-        # to the wrong chat entirely.
+        # 仅当目标是同一 channel+chat 时继承默认 message_id。
+        # 跨聊天发送不能携带原始 message_id，因为某些频道（例如飞书）
+        # 会通过 Reply API 用它确定目标会话，从而把消息路由到完全错误的聊天。
         same_target = channel == default_channel and chat_id == default_chat_id
         if same_target:
             message_id = message_id or self._default_message_id.get()

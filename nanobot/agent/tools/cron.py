@@ -1,4 +1,4 @@
-"""Cron tool for scheduling reminders and tasks."""
+"""用于调度提醒和任务的 cron 工具。"""
 
 from contextvars import ContextVar
 from datetime import datetime
@@ -39,7 +39,9 @@ _CRON_PARAMETERS = tool_parameters_schema(
         description="Whether to deliver the execution result to the user channel (default true)",
         default=True,
     ),
-    job_id=StringSchema("REQUIRED when action='remove'. Job ID to remove (obtain via action='list')."),
+    job_id=StringSchema(
+        "REQUIRED when action='remove'. Job ID to remove (obtain via action='list')."
+    ),
     required=["action"],
     description=(
         "Action-specific parameters: add requires a non-empty message plus one schedule "
@@ -53,7 +55,7 @@ _CRON_PARAMETERS = tool_parameters_schema(
 
 @tool_parameters(_CRON_PARAMETERS)
 class CronTool(Tool):
-    """Tool to schedule reminders and recurring tasks."""
+    """用于调度提醒和周期性任务的工具。"""
 
     def __init__(self, cron_service: CronService, default_timezone: str = "UTC"):
         self._cron = cron_service
@@ -65,21 +67,24 @@ class CronTool(Tool):
         self._in_cron_context: ContextVar[bool] = ContextVar("cron_in_context", default=False)
 
     def set_context(
-        self, channel: str, chat_id: str,
-        metadata: dict | None = None, session_key: str | None = None,
+        self,
+        channel: str,
+        chat_id: str,
+        metadata: dict | None = None,
+        session_key: str | None = None,
     ) -> None:
-        """Set the current session context for delivery."""
+        """设置用于投递的当前会话上下文。"""
         self._channel.set(channel)
         self._chat_id.set(chat_id)
         self._metadata.set(metadata or {})
         self._session_key.set(session_key or f"{channel}:{chat_id}")
 
     def set_cron_context(self, active: bool):
-        """Mark whether the tool is executing inside a cron job callback."""
+        """标记此工具是否正在 cron job 回调内执行。"""
         return self._in_cron_context.set(active)
 
     def reset_cron_context(self, token) -> None:
-        """Restore previous cron context."""
+        """恢复之前的 cron 上下文。"""
         self._in_cron_context.reset(token)
 
     @staticmethod
@@ -93,7 +98,7 @@ class CronTool(Tool):
         return None
 
     def _display_timezone(self, schedule: CronSchedule) -> str:
-        """Pick the most human-meaningful timezone for display."""
+        """选择最适合人类理解的时区用于展示。"""
         return schedule.tz or self._default_timezone
 
     @staticmethod
@@ -160,7 +165,7 @@ class CronTool(Tool):
             return (
                 "Error: cron action='add' requires a non-empty 'message' parameter "
                 "describing what to do when the job triggers "
-                "(e.g. the reminder text). Retry including message=\"...\"."
+                '(e.g. the reminder text). Retry including message="...".'
             )
         channel = self._channel.get()
         chat_id = self._chat_id.get()
@@ -172,7 +177,7 @@ class CronTool(Tool):
             if err := self._validate_timezone(tz):
                 return err
 
-        # Build schedule
+        # 构建调度
         delete_after = False
         if every_seconds:
             schedule = CronSchedule(kind="every", every_ms=every_seconds * 1000)
@@ -212,7 +217,7 @@ class CronTool(Tool):
         return f"Created job '{job.name}' (id: {job.id})"
 
     def _format_timing(self, schedule: CronSchedule) -> str:
-        """Format schedule as a human-readable timing string."""
+        """将调度格式化为人类可读的时间字符串。"""
         if schedule.kind == "cron":
             tz = f" ({schedule.tz})" if schedule.tz else ""
             return f"cron: {schedule.expr}{tz}"
@@ -230,7 +235,7 @@ class CronTool(Tool):
         return schedule.kind
 
     def _format_state(self, state: CronJobState, schedule: CronSchedule) -> list[str]:
-        """Format job run state as display lines."""
+        """将 job 运行状态格式化为展示行。"""
         lines: list[str] = []
         display_tz = self._display_timezone(schedule)
         if state.last_run_at_ms:
@@ -280,8 +285,5 @@ class CronTool(Tool):
                     "This is a system-managed Dream memory consolidation job for long-term memory.\n"
                     "It remains visible so you can inspect it, but it cannot be removed."
                 )
-            return (
-                f"Cannot remove job `{job_id}`.\n"
-                "This is a protected system-managed cron job."
-            )
+            return f"Cannot remove job `{job_id}`.\nThis is a protected system-managed cron job."
         return f"Job {job_id} not found"

@@ -403,7 +403,9 @@ class QQChannel(BaseChannel):
         # Remote URL
         ok, err = validate_url_target(media_ref)
         if not ok:
-            self.logger.warning("outbound media URL validation failed url={} err={}", media_ref, err)
+            self.logger.warning(
+                "outbound media URL validation failed url={} err={}", media_ref, err
+            )
             return None, None
 
         if not self._http:

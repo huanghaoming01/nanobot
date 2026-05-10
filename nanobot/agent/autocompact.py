@@ -1,4 +1,4 @@
-"""Auto compact: proactive compression of idle sessions to reduce token cost and latency."""
+"""自动压缩：主动压缩空闲会话，降低 token 成本和延迟。"""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable, Coroutine
 
 from loguru import logger
+
 from nanobot.session.manager import Session, SessionManager
 
 if TYPE_CHECKING:
@@ -16,16 +17,16 @@ if TYPE_CHECKING:
 class AutoCompact:
     _RECENT_SUFFIX_MESSAGES = 8
 
-    def __init__(self, sessions: SessionManager, consolidator: Consolidator,
-                 session_ttl_minutes: int = 0):
+    def __init__(
+        self, sessions: SessionManager, consolidator: Consolidator, session_ttl_minutes: int = 0
+    ):
         self.sessions = sessions
         self.consolidator = consolidator
         self._ttl = session_ttl_minutes
         self._archiving: set[str] = set()
         self._summaries: dict[str, tuple[str, datetime]] = {}
 
-    def _is_expired(self, ts: datetime | str | None,
-                    now: datetime | None = None) -> bool:
+    def _is_expired(self, ts: datetime | str | None, now: datetime | None = None) -> bool:
         if self._ttl <= 0 or not ts:
             return False
         if isinstance(ts, str):
@@ -38,10 +39,11 @@ class AutoCompact:
         return f"Inactive for {idle_min} minutes.\nPrevious conversation summary: {text}"
 
     def _split_unconsolidated(
-        self, session: Session,
+        self,
+        session: Session,
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        """Split live session tail into archiveable prefix and retained recent suffix."""
-        tail = list(session.messages[session.last_consolidated:])
+        """将活动会话尾部分成可归档前缀和保留的近期后缀。"""
+        tail = list(session.messages[session.last_consolidated :])
         if not tail:
             return [], []
 
@@ -58,9 +60,12 @@ class AutoCompact:
         cut = len(tail) - len(kept)
         return tail[:cut], kept
 
-    def check_expired(self, schedule_background: Callable[[Coroutine], None],
-                      active_session_keys: Collection[str] = ()) -> None:
-        """Schedule archival for idle sessions, skipping those with in-flight agent tasks."""
+    def check_expired(
+        self,
+        schedule_background: Callable[[Coroutine], None],
+        active_session_keys: Collection[str] = (),
+    ) -> None:
+        """为空闲会话调度归档，跳过仍有 agent 任务运行的会话。"""
         now = datetime.now()
         for info in self.sessions.list_sessions():
             key = info.get("key", "")
@@ -88,7 +93,10 @@ class AutoCompact:
                 summary = await self.consolidator.archive(archive_msgs) or ""
             if summary and summary != "(nothing)":
                 self._summaries[key] = (summary, last_active)
-                session.metadata["_last_summary"] = {"text": summary, "last_active": last_active.isoformat()}
+                session.metadata["_last_summary"] = {
+                    "text": summary,
+                    "last_active": last_active.isoformat(),
+                }
             session.messages = kept_msgs
             session.last_consolidated = 0
             session.updated_at = datetime.now()
@@ -108,10 +116,12 @@ class AutoCompact:
 
     def prepare_session(self, session: Session, key: str) -> tuple[Session, str | None]:
         if key in self._archiving or self._is_expired(session.updated_at):
-            logger.info("Auto-compact: reloading session {} (archiving={})", key, key in self._archiving)
+            logger.info(
+                "Auto-compact: reloading session {} (archiving={})", key, key in self._archiving
+            )
             session = self.sessions.get_or_create(key)
-        # Hot path: summary from in-memory dict (process hasn't restarted).
-        # Also clean metadata copy so stale _last_summary never leaks to disk.
+        # 热路径：从内存字典获取摘要（进程尚未重启）。
+        # 同时清理元数据副本，避免过期的 _last_summary 泄漏到磁盘。
         entry = self._summaries.pop(key, None)
         if entry:
             session.metadata.pop("_last_summary", None)
@@ -119,5 +129,7 @@ class AutoCompact:
         if "_last_summary" in session.metadata:
             meta = session.metadata.pop("_last_summary")
             self.sessions.save(session)
-            return session, self._format_summary(meta["text"], datetime.fromisoformat(meta["last_active"]))
+            return session, self._format_summary(
+                meta["text"], datetime.fromisoformat(meta["last_active"])
+            )
         return session, None

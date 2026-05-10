@@ -9,6 +9,7 @@ import pytest
 # Check optional dingtalk dependencies before running tests
 try:
     from nanobot.channels import dingtalk
+
     DINGTALK_AVAILABLE = getattr(dingtalk, "DINGTALK_AVAILABLE", False)
 except ImportError:
     DINGTALK_AVAILABLE = False
@@ -226,10 +227,12 @@ async def test_download_dingtalk_file(tmp_path, monkeypatch) -> None:
 
     # Mock HTTP: first POST returns downloadUrl, then GET returns file bytes
     file_content = b"fake file content"
-    channel._http = _FakeHttp(responses=[
-        _FakeResponse(200, {"downloadUrl": "https://example.com/tmpfile"}),
-        _FakeResponse(200),
-    ])
+    channel._http = _FakeHttp(
+        responses=[
+            _FakeResponse(200, {"downloadUrl": "https://example.com/tmpfile"}),
+            _FakeResponse(200),
+        ]
+    )
     channel._http._responses[1].content = file_content
 
     # Redirect media dir to tmp_path
@@ -340,7 +343,9 @@ async def test_read_media_bytes_does_not_follow_remote_redirects_by_default() ->
         ]
     )
 
-    data, filename, content_type = await channel._read_media_bytes("https://example.com/redirect.txt")
+    data, filename, content_type = await channel._read_media_bytes(
+        "https://example.com/redirect.txt"
+    )
 
     assert (data, filename, content_type) == (None, None, None)
     assert channel._http.calls[0]["kwargs"]["follow_redirects"] is False
@@ -374,7 +379,9 @@ async def test_read_media_bytes_follows_safe_redirect_when_explicitly_enabled() 
         ]
     )
 
-    data, filename, content_type = await channel._read_media_bytes("https://example.com/redirect.txt")
+    data, filename, content_type = await channel._read_media_bytes(
+        "https://example.com/redirect.txt"
+    )
 
     assert (data, filename, content_type) == (b"redirected media", "redirect.txt", "text/plain")
     assert [call["url"] for call in channel._http.calls] == [
@@ -412,7 +419,9 @@ async def test_read_media_bytes_blocks_cross_host_redirect_without_allowlist() -
         ]
     )
 
-    data, filename, content_type = await channel._read_media_bytes("https://example.com/redirect.txt")
+    data, filename, content_type = await channel._read_media_bytes(
+        "https://example.com/redirect.txt"
+    )
 
     assert (data, filename, content_type) == (None, None, None)
     assert [call["url"] for call in channel._http.calls] == ["https://example.com/redirect.txt"]
@@ -447,7 +456,9 @@ async def test_read_media_bytes_allows_cross_host_redirect_when_allowlisted() ->
         ]
     )
 
-    data, filename, content_type = await channel._read_media_bytes("https://example.com/redirect.txt")
+    data, filename, content_type = await channel._read_media_bytes(
+        "https://example.com/redirect.txt"
+    )
 
     assert (data, filename, content_type) == (b"cross-host media", "redirect.txt", "text/plain")
     assert [call["url"] for call in channel._http.calls] == [
@@ -484,7 +495,9 @@ async def test_read_media_bytes_blocks_private_redirect_even_when_redirects_enab
         ]
     )
 
-    data, filename, content_type = await channel._read_media_bytes("https://example.com/redirect.txt")
+    data, filename, content_type = await channel._read_media_bytes(
+        "https://example.com/redirect.txt"
+    )
 
     assert (data, filename, content_type) == (None, None, None)
     assert [call["url"] for call in channel._http.calls] == ["https://example.com/redirect.txt"]

@@ -1,4 +1,4 @@
-"""Tool for pausing a turn until the user answers."""
+"""用于暂停当前回合并等待用户回答的工具。"""
 
 import json
 from typing import Any
@@ -10,7 +10,7 @@ STRUCTURED_BUTTON_CHANNELS = frozenset({"telegram", "websocket"})
 
 
 class AskUserInterrupt(BaseException):
-    """Internal signal: the runner should stop and wait for user input."""
+    """内部信号：runner 应停止并等待用户输入。"""
 
     def __init__(self, question: str, options: list[str] | None = None) -> None:
         self.question = question
@@ -31,7 +31,7 @@ class AskUserInterrupt(BaseException):
     )
 )
 class AskUserTool(Tool):
-    """Ask the user a blocking question."""
+    """向用户提出阻塞式问题。"""
 
     @property
     def name(self) -> str:

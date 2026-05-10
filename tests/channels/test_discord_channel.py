@@ -1222,6 +1222,7 @@ async def test_start_no_proxy_auth_when_only_password(monkeypatch) -> None:
 # Tests for the send() exception propagation fix
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_send_re_raises_network_error() -> None:
     """Network errors during send must propagate so ChannelManager can retry."""

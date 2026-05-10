@@ -66,8 +66,7 @@ class GitStore:
 
         if self._is_inside_git_repo():
             logger.warning(
-                "Workspace {} is already inside a git repo; "
-                "skipping nested repo initialization",
+                "Workspace {} is already inside a git repo; skipping nested repo initialization",
                 self._workspace,
             )
             return False
@@ -84,9 +83,7 @@ class GitStore:
                 existing = gitignore.read_text(encoding="utf-8")
                 existing_lines = set(existing.splitlines())
                 new_lines = [
-                    line
-                    for line in dream_entries.splitlines()
-                    if line not in existing_lines
+                    line for line in dream_entries.splitlines() if line not in existing_lines
                 ]
                 if new_lines:
                     merged = existing.rstrip("\n") + "\n" + "\n".join(new_lines) + "\n"
@@ -234,11 +231,13 @@ class GitStore:
                         time.localtime(commit.commit_time),
                     )
                     msg = commit.message.decode("utf-8", errors="replace").strip()
-                    entries.append(CommitInfo(
-                        sha=sha.hex()[:8],
-                        message=msg,
-                        timestamp=ts,
-                    ))
+                    entries.append(
+                        CommitInfo(
+                            sha=sha.hex()[:8],
+                            message=msg,
+                            timestamp=ts,
+                        )
+                    )
                     sha = commit.parents[0] if commit.parents else None
 
             return entries
@@ -306,7 +305,9 @@ class GitStore:
                 return c
         return None
 
-    def show_commit_diff(self, short_sha: str, max_entries: int = 20) -> tuple[CommitInfo, str] | None:
+    def show_commit_diff(
+        self, short_sha: str, max_entries: int = 20
+    ) -> tuple[CommitInfo, str] | None:
         """Find a commit and return it with its diff vs the parent."""
         commits = self.log(max_entries=max_entries)
         for i, c in enumerate(commits):
