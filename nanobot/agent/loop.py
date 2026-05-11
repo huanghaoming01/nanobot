@@ -40,6 +40,7 @@ from nanobot.agent.tools.search import GlobTool, GrepTool
 from nanobot.agent.tools.self import MyTool
 from nanobot.agent.tools.shell import ExecTool
 from nanobot.agent.tools.spawn import SpawnTool
+from nanobot.agent.tools.weather import WeatherTool
 from nanobot.agent.tools.web import WebFetchTool, WebSearchTool
 from nanobot.bus.events import InboundMessage, OutboundMessage
 from nanobot.bus.queue import MessageBus
@@ -133,9 +134,7 @@ class _LoopHook(AgentHook):
     async def before_execute_tools(self, context: AgentHookContext) -> None:
         if self._on_progress:
             if not self._on_stream and not context.streamed_content:
-                thought = self._loop._strip_think(
-                    context.response.content if context.response else None
-                )
+                thought = self._loop._strip_think(context.response.content if context.response else None)
                 if thought:
                     await self._on_progress(thought)
             tool_hint = self._loop._strip_think(self._loop._tool_hint(context.tool_calls))
@@ -309,34 +308,23 @@ class AgentLoop:
         self._provider_signature = provider_signature
         self.workspace = workspace
         self.model = model or provider.get_default_model()
-        self.max_iterations = (
-            max_iterations if max_iterations is not None else defaults.max_tool_iterations
-        )
+        self.max_iterations = max_iterations if max_iterations is not None else defaults.max_tool_iterations
         self.context_window_tokens = (
-            context_window_tokens
-            if context_window_tokens is not None
-            else defaults.context_window_tokens
+            context_window_tokens if context_window_tokens is not None else defaults.context_window_tokens
         )
         self.context_block_limit = context_block_limit
         self.max_tool_result_chars = (
-            max_tool_result_chars
-            if max_tool_result_chars is not None
-            else defaults.max_tool_result_chars
+            max_tool_result_chars if max_tool_result_chars is not None else defaults.max_tool_result_chars
         )
         self.provider_retry_mode = provider_retry_mode
         self.tool_hint_max_length = (
-            tool_hint_max_length
-            if tool_hint_max_length is not None
-            else defaults.tool_hint_max_length
+            tool_hint_max_length if tool_hint_max_length is not None else defaults.tool_hint_max_length
         )
         self.web_config = web_config or WebToolsConfig()
         self.exec_config = exec_config or ExecToolConfig()
         self.tools_config = _tc
         self._image_generation_provider_configs = dict(image_generation_provider_configs or {})
-        if (
-            image_generation_provider_config is not None
-            and "openrouter" not in self._image_generation_provider_configs
-        ):
+        if image_generation_provider_config is not None and "openrouter" not in self._image_generation_provider_configs:
             self._image_generation_provider_configs["openrouter"] = image_generation_provider_config
         self.cron_service = cron_service
         self.restrict_to_workspace = restrict_to_workspace
@@ -379,9 +367,7 @@ class AgentLoop:
         self._pending_queues: dict[str, asyncio.Queue] = {}
         # NANOBOT_MAX_CONCURRENT_REQUESTS：<=0 表示不限；默认 3。
         _max = int(os.environ.get("NANOBOT_MAX_CONCURRENT_REQUESTS", "3"))
-        self._concurrency_gate: asyncio.Semaphore | None = (
-            asyncio.Semaphore(_max) if _max > 0 else None
-        )
+        self._concurrency_gate: asyncio.Semaphore | None = asyncio.Semaphore(_max) if _max > 0 else None
         self.consolidator = Consolidator(
             store=self.context.memory,
             provider=provider,
@@ -430,9 +416,7 @@ class AgentLoop:
         defaults = config.agents.defaults
         provider = extra.pop("provider", None) or make_provider(config)
         model = extra.pop("model", None) or defaults.model
-        context_window_tokens = (
-            extra.pop("context_window_tokens", None) or defaults.context_window_tokens
-        )
+        context_window_tokens = extra.pop("context_window_tokens", None) or defaults.context_window_tokens
         return cls(
             bus=bus,
             provider=provider,
@@ -495,9 +479,7 @@ class AgentLoop:
 
     def _register_default_tools(self) -> None:
         """注册默认工具集。"""
-        allowed_dir = (
-            self.workspace if (self.restrict_to_workspace or self.exec_config.sandbox) else None
-        )
+        allowed_dir = self.workspace if (self.restrict_to_workspace or self.exec_config.sandbox) else None
         extra_read = [BUILTIN_SKILLS_DIR] if allowed_dir else None
         self.tools.register(AskUserTool())
         self.tools.register(
@@ -549,6 +531,8 @@ class AgentLoop:
                     user_agent=self.web_config.user_agent,
                 )
             )
+            self.tools.register(WeatherTool())
+
         if self.tools_config.image_generation.enabled:
             self.tools.register(
                 ImageGenerationTool(
@@ -557,14 +541,10 @@ class AgentLoop:
                     provider_configs=self._image_generation_provider_configs,
                 )
             )
-        self.tools.register(
-            MessageTool(send_callback=self.bus.publish_outbound, workspace=self.workspace)
-        )
+        self.tools.register(MessageTool(send_callback=self.bus.publish_outbound, workspace=self.workspace))
         self.tools.register(SpawnTool(manager=self.subagents))
         if self.cron_service:
-            self.tools.register(
-                CronTool(self.cron_service, default_timezone=self.context.timezone or "UTC")
-            )
+            self.tools.register(CronTool(self.cron_service, default_timezone=self.context.timezone or "UTC"))
 
     async def _connect_mcp(self) -> None:
         """连接已配置的 MCP 服务器（一次性、懒加载）。"""
@@ -614,9 +594,7 @@ class AgentLoop:
                         if hasattr(tool, "set_origin_message_id"):
                             tool.set_origin_message_id(message_id)
                     elif name == "cron":
-                        tool.set_context(
-                            channel, chat_id, metadata=metadata, session_key=session_key
-                        )
+                        tool.set_context(channel, chat_id, metadata=metadata, session_key=session_key)
                     elif name == "message":
                         tool.set_context(channel, chat_id, message_id, metadata=metadata)
                     else:
@@ -642,9 +620,7 @@ class AgentLoop:
 
         return format_tool_hints(tool_calls, max_length=self.tool_hint_max_length)
 
-    async def _build_bus_progress_callback(
-        self, msg: InboundMessage
-    ) -> Callable[..., Awaitable[None]]:
+    async def _build_bus_progress_callback(self, msg: InboundMessage) -> Callable[..., Awaitable[None]]:
         """构建发布到消息总线的进度回调。"""
 
         async def _bus_progress(
@@ -669,9 +645,7 @@ class AgentLoop:
 
         return _bus_progress
 
-    async def _build_retry_wait_callback(
-        self, msg: InboundMessage
-    ) -> Callable[[str], Awaitable[None]]:
+    async def _build_retry_wait_callback(self, msg: InboundMessage) -> Callable[[str], Awaitable[None]]:
         """构建发布到消息总线的重试等待回调。"""
 
         async def _on_retry_wait(content: str) -> None:
@@ -819,9 +793,7 @@ class AgentLoop:
             metadata=metadata,
             session_key=session_key,
         )
-        hook: AgentHook = (
-            CompositeHook([loop_hook] + self._extra_hooks) if self._extra_hooks else loop_hook
-        )
+        hook: AgentHook = CompositeHook([loop_hook] + self._extra_hooks) if self._extra_hooks else loop_hook
 
         async def _checkpoint(payload: dict[str, Any]) -> None:
             if session is None:
@@ -865,11 +837,7 @@ class AgentLoop:
 
             # 如果没有排空任何内容，但本次派发创建的子 agent 仍在运行，则阻塞等待。
             # 这会保持 runner 循环存活，让后续完成事件按顺序注入，而不是单独派发。
-            if (
-                not items
-                and session is not None
-                and self.subagents.get_running_count_by_session(session.key) > 0
-            ):
+            if not items and session is not None and self.subagents.get_running_count_by_session(session.key) > 0:
                 try:
                     msg = await asyncio.wait_for(pending_queue.get(), timeout=300)
                 except asyncio.TimeoutError:
@@ -1361,9 +1329,7 @@ class AgentLoop:
 
             next_state = self._TRANSITIONS.get((ctx.state, event))
             if next_state is None:
-                raise RuntimeError(
-                    f"[turn {ctx.turn_id}] No transition from {ctx.state} on event {event!r}"
-                )
+                raise RuntimeError(f"[turn {ctx.turn_id}] No transition from {ctx.state} on event {event!r}")
             ctx.state = next_state
 
         logger.debug(
@@ -1442,9 +1408,7 @@ class AgentLoop:
 
     async def _state_command(self, ctx: TurnContext) -> str:
         raw = ctx.msg.content.strip()
-        cmd_ctx = CommandContext(
-            msg=ctx.msg, session=ctx.session, key=ctx.session_key, raw=raw, loop=self
-        )
+        cmd_ctx = CommandContext(msg=ctx.msg, session=ctx.session, key=ctx.session_key, raw=raw, loop=self)
         result = await self.commands.dispatch(cmd_ctx)
         if result is not None:
             ctx.outbound = result
@@ -1479,9 +1443,7 @@ class AgentLoop:
         ctx.initial_messages = self._build_initial_messages(
             ctx.msg, ctx.session, ctx.history, pending_ask_id, ctx.pending_summary
         )
-        ctx.user_persisted_early = self._persist_user_message_early(
-            ctx.msg, ctx.session, pending_ask_id
-        )
+        ctx.user_persisted_early = self._persist_user_message_early(ctx.msg, ctx.session, pending_ask_id)
 
         if ctx.on_progress is None:
             ctx.on_progress = await self._build_bus_progress_callback(ctx.msg)
@@ -1573,9 +1535,7 @@ class AgentLoop:
             ):
                 continue
 
-            if block.get("type") == "image_url" and block.get("image_url", {}).get(
-                "url", ""
-            ).startswith("data:image/"):
+            if block.get("type") == "image_url" and block.get("image_url", {}).get("url", "").startswith("data:image/"):
                 path = (block.get("_meta") or {}).get("path", "")
                 filtered.append({"type": "text", "text": image_placeholder_text(path)})
                 continue
@@ -1609,9 +1569,7 @@ class AgentLoop:
                         continue
                     entry["content"] = filtered
             elif role == "user":
-                if isinstance(content, str) and content.startswith(
-                    ContextBuilder._RUNTIME_CONTEXT_TAG
-                ):
+                if isinstance(content, str) and content.startswith(ContextBuilder._RUNTIME_CONTEXT_TAG):
                     # 剥离整个运行时上下文块（包括任何会话摘要）。
                     # 该块由 _RUNTIME_CONTEXT_TAG 和 _RUNTIME_CONTEXT_END 限定。
                     end_marker = ContextBuilder._RUNTIME_CONTEXT_END
@@ -1648,8 +1606,7 @@ class AgentLoop:
             return False
         task_id = msg.metadata.get("subagent_task_id") if isinstance(msg.metadata, dict) else None
         if task_id and any(
-            m.get("injected_event") == "subagent_result" and m.get("subagent_task_id") == task_id
-            for m in session.messages
+            m.get("injected_event") == "subagent_result" and m.get("subagent_task_id") == task_id for m in session.messages
         ):
             return False
         session.add_message(
